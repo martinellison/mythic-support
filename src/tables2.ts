@@ -201,7 +201,7 @@ export class KdlTables {
 						tableNode.children.forEach(itemNode => {
 							const itemIdent = itemNode.values[0] ?? "";
 							const itemProps = tableNode.properties;
-							const itemWeight = parseInt(itemProps.weight as string ?? "1") ?? 1;
+							const itemWeight = parseInt(itemProps.get('weight') as string ?? "1") ?? 1;
 							let entry = new CheckTableEntry(itemWeight, itemIdent);
 							entries.push(entry);
 						});

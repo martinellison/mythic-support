@@ -98,16 +98,16 @@ export default class MythicSupportPlugin extends Plugin {
 							new MythicObjectModal(this.app, object, block, meta).open();
 							break;
 						}
-						case MythicObjectKind.Thread: {
-							let thread = new Thread('');
-							let block = new CodeBlock(
-								cursor.line,
-								cursor.line,
-								'thread',
-							);
-							new ThreadModal(this.app, thread, block).open();
-							break;
-						}
+						// case MythicObjectKind.Thread: { // TODO fix
+						// 	let thread = new Thread(''); // TODO fix thread/Thread passim this file
+						// 	let block = new CodeBlock(
+						// 		cursor.line,
+						// 		cursor.line,
+						// 		'thread',
+						// 	);
+						// 	new ThreadModal(this.app, thread, block).open();
+						// 	break;
+						// }
 						case MythicObjectKind.Dice: {
 							let dice = new Dice('');
 							let block = new CodeBlock(
@@ -167,12 +167,12 @@ export default class MythicSupportPlugin extends Plugin {
 								new QuestionModal(this.app, question, block, this.tables, this).open();
 							}
 							break;
-						case Thread.TAG:
-							{
-								let thread = Thread.fromJson(source);
-								new ThreadModal(this.app, thread, block).open();
-							}
-							break;
+						// case Thread.TAG:
+						// 	{
+						// 		let thread = Thread.fromJson(source);
+						// 		new ThreadModal(this.app, thread, block).open();
+						// 	}
+						// 	break;
 						case Dice.TAG:
 							{
 								let dice = Dice.fromJson(source);
@@ -229,12 +229,12 @@ export default class MythicSupportPlugin extends Plugin {
 				Question.toHtml(source, el, ctx, this.tables);
 			},
 		);
-		this.registerMarkdownCodeBlockProcessor(
-			Thread.TAG,
-			(source, el, ctx) => {
-				Thread.toHtml(source, el, ctx);
-			},
-		);
+		// this.registerMarkdownCodeBlockProcessor(
+		// 	Thread.TAG,
+		// 	(source, el, ctx) => {
+		// 		Thread.toHtml(source, el, ctx);
+		// 	},
+		// );
 		this.registerMarkdownCodeBlockProcessor(
 			Dice.TAG,
 			(source, el, ctx) => {
@@ -284,7 +284,7 @@ export default class MythicSupportPlugin extends Plugin {
 export const enum MythicObjectKind {
 	Scene = 'scene',
 	Question = 'question',
-	Thread = 'thread',
+	// Thread = 'thread',
 	MythicObject = 'object',
 	Dice = 'dice',
 	Adventure = 'adventure',

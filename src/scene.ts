@@ -187,7 +187,7 @@ export class SceneModal extends Modal {
 			});
 			dropDown.setValue(this.scene.kind);
 			dropDown.onChange((value) => {
-				console.log("alteration kind", value, alterationSetting === undefined ? 'undefined' : 'ok'); // TODO error
+				console.log("alteration kind", value,);
 				this.scene.kind = value as AlterationKind;
 				// if (alterationSetting !== undefined)
 				// 	alterationSetting.setDisabled(this.scene.sceneTest == SceneTest.Expected);
