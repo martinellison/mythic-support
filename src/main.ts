@@ -28,16 +28,16 @@ export default class MythicSupportPlugin extends Plugin {
 	tables: Tables = new Tables();
 	metadata: Metadata = new Metadata(this);
 	async onCreate() {
-		console.log("starting plugin create");
+		// console.log("starting plugin create");
 		await this.metadata.load(this.app.metadataCache, this.app.vault, this);
 		await this.metadata.scanAllFiles(this.app.metadataCache, this.app.vault, this);
-		console.log("plugin create ended");
+		// console.log("plugin create ended");
 	}
 
 	async onload() {
-		console.log('loading MythicSupportPlugin');
+		// console.log('loading MythicSupportPlugin');
 		this.app.workspace.onLayoutReady(async () => {
-			console.log("layout ready");
+			// console.log("layout ready");
 			//this.registerEvent(this.app.vault.on('create', this.onCreate.bind(this), this));
 			await this.onCreate();
 			this.tables = await KdlTables.load(this.app.vault);
@@ -87,7 +87,7 @@ export default class MythicSupportPlugin extends Plugin {
 						}
 						case MythicObjectKind.MythicObject: {
 							const meta = this.tables.meta(objectKind);
-							console.log("meta for", objectKind);
+							// console.log("meta for", objectKind);
 							assertDefined(meta);
 							let object = new MythicObject(objectKind, "", "");
 							let block = new CodeBlock(
@@ -219,7 +219,7 @@ export default class MythicSupportPlugin extends Plugin {
 		this.registerMarkdownCodeBlockProcessor(
 			Scene.TAG,
 			(source, el, ctx) => {
-				console.log("generation scene html");
+				// console.log("generation scene html");
 				Scene.toHtml(source, el, ctx, this.tables);
 			},
 		);
@@ -250,27 +250,27 @@ export default class MythicSupportPlugin extends Plugin {
 		this.registerMarkdownCodeBlockProcessor(
 			Adventure.TAG,
 			(source, el, ctx) => {
-				console.log("generation adventure html");
+				// console.log("generation adventure html");
 				Adventure.toHtml(source, el, ctx, this.metadata, this.tables);
 			},
 		);
 		this.addSettingTab(new MythicSettingTab(this.app, this));
-		console.log("MythicSupportPlugin plugin loaded");
+		// console.log("MythicSupportPlugin plugin loaded");
 	}
 
 	onunload() {
-		console.log('unloading MythicSupportPlugin');
+		// console.log('unloading MythicSupportPlugin');
 		this.metadata.unload(this.app.metadataCache);
 	}
 
 	async loadSettings() {
-		console.log("loading settings");
+		// console.log("loading settings");
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
 			(await this.loadData()) as Partial<MythicSupportPluginSettings>,
 		);
-		console.log("settings loaded");
+		// console.log("settings loaded");
 	}
 
 	async saveSettings() {

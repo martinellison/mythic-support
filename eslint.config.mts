@@ -23,7 +23,7 @@ export default defineConfig(
 				projectService: {
 					allowDefaultProject: ['eslint.config.mts', 'manifest.json'],
 				},
-				tsconfigRootDir: import.meta.dirname,
+				// tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions: ['.json'],
 			},
 		},

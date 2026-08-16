@@ -85,7 +85,7 @@ export class Scene {
 	}
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext, tables: Tables) {
 		assertDefined(tables);
-		console.log("rendering scene", source);
+		// console.log("rendering scene", source);
 		const scene: Scene = Scene.fromJson(source);
 		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-scene' });
 		divElt.createSpan({ text: `Scene ${scene.num}: chaos ${scene.chaos}:` });
@@ -130,7 +130,7 @@ export class Scene {
 			divElt.createSpan({ text: ' edit this scene to provide the adjusted scene' });
 		}
 		if (scene.has_random_event) {
-			// console.log("random event");
+			// // console.log("random event");
 			let randElt = divElt.createSpan({ text: `(random) `, cls: 'mythic-random' });
 			randElt.createSpan({ text: scene.random_event.explain(tables), });
 		}
@@ -187,7 +187,7 @@ export class SceneModal extends Modal {
 			});
 			dropDown.setValue(this.scene.kind);
 			dropDown.onChange((value) => {
-				console.log("alteration kind", value,);
+				// console.log("alteration kind", value,);
 				this.scene.kind = value as AlterationKind;
 				// if (alterationSetting !== undefined)
 				// 	alterationSetting.setDisabled(this.scene.sceneTest == SceneTest.Expected);
@@ -208,8 +208,8 @@ export class SceneModal extends Modal {
 		}
 		// .setDisabled(this.scene.kind == AlterationKind.Expected);
 		new Setting(this.contentEl).setName('Meaning').addDropdown((dropDown) => {
-			// console.log(tables);
-			// console.log("meaning is", tables.meaning);
+			// // console.log(tables);
+			// // console.log("meaning is", tables.meaning);
 			for (let o of tables.meaning) {
 				const om = o[0];
 				if (om[om.length - 1] != '2')
@@ -217,7 +217,7 @@ export class SceneModal extends Modal {
 			}
 			dropDown.setValue(this.scene.random_event.meaning_kind);
 			dropDown.onChange((value) => {
-				console.log("scene meaning changed to", value);
+				// console.log("scene meaning changed to", value);
 				// this.scene.setRandom();
 				this.scene.random_event.meaning_kind = value as MeaningKind;
 				this.scene.setRandom(tables, plugin);

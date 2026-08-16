@@ -1,9 +1,8 @@
 import { parse } from 'kdljs';
-import { TFile, Vault } from "obsidian";
+import { Vault } from "obsidian";
 import { Type, plainToInstance, instanceToPlain } from 'class-transformer';
 import { QuestionOdds } from './question.js';
 import { MeaningKind } from './randomevent.js';
-import { Metadata } from './metadata.js';
 import { assertDefined } from './main.js';
 export const enum Interpretation {
 	None = 'none',
@@ -31,12 +30,12 @@ class CheckTable {
 	numDice: number = 1;
 	diceMax: number = 0;
 	fix(entries: Array<CheckTableEntry> = [], numDice: number = 1) {
-		// console.log("fixing", numDice, entries);
+		// // console.log("fixing", numDice, entries);
 		this.numDice = numDice;
 		entries.forEach((entry) => {
 			entry.min = this.totWeights;
 			this.totWeights += entry.weight;
-			// console.log("entry", entry, this.totWeights);
+			// // console.log("entry", entry, this.totWeights);
 		});
 		if (this.numDice > 0)
 			this.diceMax = this.totWeights / this.numDice;
@@ -113,7 +112,7 @@ export class Tables {
 		return new CheckTableEntry(0, "??", Interpretation.None);
 	}
 	getQuestionOdds(ident: string): QuestionOdds {
-		// console.log("finding odds", ident);
+		// // console.log("finding odds", ident);
 		for (let o of this.questionOdds) {
 			if (o.ident == ident) return o;
 		}
@@ -129,14 +128,14 @@ export class KdlTables {
 		const source = await vault.cachedRead(path);
 		const kdl = parse(source);
 		let nodes: Array<KdlNode> = plainToInstance(Array<KdlNode>, kdl.output);
-		console.log("tables as read from KDL", nodes);
+		// console.log("tables as read from KDL", nodes);
 		let table = new Tables;
 		nodes.forEach((node: KdlNode) => {
-			// console.log("node is", node);
+			// // console.log("node is", node);
 			switch (node.name) {
 				case 'questions':
 					node.children.forEach(odds => {
-						// console.log("odds", odds);
+						// // console.log("odds", odds);
 						const ident = odds.values[0] ?? "";
 						const props = odds.properties;
 						const display = props.get('display') as string;
@@ -147,16 +146,16 @@ export class KdlTables {
 				case 'fate': {
 					const props = node.properties;
 					const numDice = parseInt(props.get('dice') as string ?? "1") ?? 1;
-					// console.log("num dice", numDice);
+					// // console.log("num dice", numDice);
 					let entries = new Array<CheckTableEntry>;
 					node.children.forEach(odds => {
-						// console.log("odds", odds);
+						// // console.log("odds", odds);
 						const text = odds.values[0] ?? "";
 						const props = odds.properties;
 						// const interpretation = props.interpretation as string;
 						// const min = parseInt(props.min as string) ?? 0;
 						const weight = parseInt(props.get('weight') as string ?? "1") ?? 1;
-						// console.log("fate", text, weight);
+						// // console.log("fate", text, weight);
 						entries.push(new CheckTableEntry(weight, text));
 					});
 					table.fateCheckAnswers.fix(entries, numDice);
@@ -167,7 +166,7 @@ export class KdlTables {
 					const numDice = parseInt(props.get('dice') as string ?? "1") ?? 1;
 					let entries = new Array<CheckTableEntry>;
 					node.children.forEach(chance => {
-						// console.log("chance", chance);
+						// // console.log("chance", chance);
 						const text = chance.values[0] ?? "";
 						const props = chance.properties;
 						// const text = props.text as string;
@@ -180,13 +179,13 @@ export class KdlTables {
 					break;
 				case 'objects':
 					node.children.forEach(kind => { // TODO FIXME this is wrong
-						// console.log("object kind", kind);
+						// // console.log("object kind", kind);
 						const ident = kind.values[0] ?? "";
 						const props = kind.properties;
 						// const text = odds.text as string;
 						const display = props.get('display') as string;
 						const description = props.get('description') as string;
-						console.log("object kind has", kind, description, display);
+						// console.log("object kind has", kind, description, display);
 						table.objectKinds.set(ident, new MythicObjectMeta(ThingFamily.Object, kind.name, description, display));
 					});
 					break;
@@ -224,11 +223,11 @@ export class KdlTables {
 				case 'tables':
 					node.children.forEach(list => {
 						const ident = list.values[0] ?? "";
-						// console.log("list", ident, list);
+						// // console.log("list", ident, list);
 						let items = new Array<string>;
 						list.children.forEach(item => {
 							const text = item.values[0] ?? "";
-							// console.log("item", item, ident);
+							// // console.log("item", item, ident);
 							items.push(text);
 
 						});
@@ -236,10 +235,10 @@ export class KdlTables {
 					});
 					break;
 				default:
-					console.log("need to implement", node.name);
+				// console.log("need to implement", node.name);
 			}
 		});
-		console.log("tables", table);
+		// console.log("tables", table);
 		return table;
 	}
 }

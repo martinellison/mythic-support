@@ -1,7 +1,6 @@
 import { plainToInstance, instanceToPlain } from 'class-transformer';
-import { Modal, App, Setting, MarkdownPostProcessorContext, Vault, DisplayValueComponent } from 'obsidian';
+import { Modal, App, Setting, MarkdownPostProcessorContext, } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
-import { MythicObject } from './object.js';
 import MythicSupportPlugin, { assertDefined } from './main.js';
 import { Metadata } from './metadata.js';
 import { Tables } from './tables2.js';
@@ -37,9 +36,9 @@ export class Adventure {
 				let kindElt = divElt.createDiv();
 				kindElt.createEl('b', { text: `${kind.displayName}: ` });
 				const objects = metadata.blockTable.objects(ident).map(ch => ch.name);
-				console.log("for adventure", ident, kind, objects);
+				// console.log("for adventure", ident, kind, objects);
 				kindElt.createSpan({ text: ` ${objects.join(", ")}` });
-				console.log((`${ident}: found ${objects.length}`));
+				// console.log((`${ident}: found ${objects.length}`));
 			});
 		}
 	}
