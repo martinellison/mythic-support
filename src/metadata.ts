@@ -1,7 +1,6 @@
 import { CachedMetadata, EventRef, MetadataCache, Pos, ReferenceLinkCache, TAbstractFile, TFile, Vault, } from "obsidian";
 import MythicSupportPlugin, { assertDefined } from "./main.js";
 import { MythicObject } from "./object.js";
-import { Thread } from "./old/thread.js";
 class FrontMatter {
 	mythic_adventure: string = "";
 }

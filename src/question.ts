@@ -12,9 +12,9 @@ export class QuestionOdds {
 	display: string;
 	ident: string;
 	fate_check_modifier: number;
-	constructor(//value: Odds,
+	constructor(
 		display: string,
-		mod: number): void {
+		mod: number) {
 		this.display = display;
 		this.ident = this.display.trim().replaceAll(NONIDENT, '_');
 		this.fate_check_modifier = mod;

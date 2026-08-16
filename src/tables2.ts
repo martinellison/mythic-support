@@ -139,14 +139,14 @@ export class KdlTables {
 						// console.log("odds", odds);
 						const ident = odds.values[0] ?? "";
 						const props = odds.properties;
-						const display = props.display as string;
-						const mod = parseInt(props.mod as string ?? "0") ?? 0;
+						const display = props.get('display') as string;
+						const mod = parseInt(props.get('mod') as string ?? "0") ?? 0;
 						table.questionOdds.push(new QuestionOdds(display, mod)); // TODO ident
 					});
 					break;
 				case 'fate': {
 					const props = node.properties;
-					const numDice = parseInt(props.dice as string ?? "1") ?? 1;
+					const numDice = parseInt(props.get('dice') as string ?? "1") ?? 1;
 					// console.log("num dice", numDice);
 					let entries = new Array<CheckTableEntry>;
 					node.children.forEach(odds => {
@@ -155,7 +155,7 @@ export class KdlTables {
 						const props = odds.properties;
 						// const interpretation = props.interpretation as string;
 						// const min = parseInt(props.min as string) ?? 0;
-						const weight = parseInt(props.weight as string ?? "1") ?? 1;
+						const weight = parseInt(props.get('weight') as string ?? "1") ?? 1;
 						// console.log("fate", text, weight);
 						entries.push(new CheckTableEntry(weight, text));
 					});
@@ -164,16 +164,16 @@ export class KdlTables {
 					break;
 				case 'chances': {
 					const props = node.properties;
-					const numDice = parseInt(props.dice as string ?? "1") ?? 1;
+					const numDice = parseInt(props.get('dice') as string ?? "1") ?? 1;
 					let entries = new Array<CheckTableEntry>;
 					node.children.forEach(chance => {
 						// console.log("chance", chance);
 						const text = chance.values[0] ?? "";
 						const props = chance.properties;
 						// const text = props.text as string;
-						const interpretation = props.interpretation as Interpretation;
+						const interpretation = props.get('interpretation') as Interpretation;
 						// const min = parseInt(props.min as string) ?? 0;
-						entries.push(new CheckTableEntry(parseInt(props.weight as string ?? "1") ?? 1, text));
+						entries.push(new CheckTableEntry(parseInt(props.get('weight') as string ?? "1") ?? 1, text));
 					});
 					table.chances.fix(entries, numDice);
 				}
@@ -184,8 +184,8 @@ export class KdlTables {
 						const ident = kind.values[0] ?? "";
 						const props = kind.properties;
 						// const text = odds.text as string;
-						const display = props.display as string;
-						const description = props.description as string;
+						const display = props.get('display') as string;
+						const description = props.get('description') as string;
 						console.log("object kind has", kind, description, display);
 						table.objectKinds.set(ident, new MythicObjectMeta(ThingFamily.Object, kind.name, description, display));
 					});
@@ -194,9 +194,9 @@ export class KdlTables {
 					node.children.forEach(tableNode => {
 						const ident = tableNode.values[0] ?? "";
 						const props = tableNode.properties;
-						const numDice = parseInt(props.dice as string ?? "1") ?? 1;
-						const display = props.display as string;
-						const description = props.description as string;
+						const numDice = parseInt(props.get('dice') as string ?? "1") ?? 1;
+						const display = props.get('display') as string;
+						const description = props.get('description') as string;
 						let entries = new Array<CheckTableEntry>;
 						tableNode.children.forEach(itemNode => {
 							const itemIdent = itemNode.values[0] ?? "";
@@ -216,8 +216,8 @@ export class KdlTables {
 					node.children.forEach(itemNode => {
 						const ident: string = itemNode.values[0] ?? "";
 						const props = itemNode.properties;
-						const display = props.display as string;
-						const description = props.description as string;
+						const display = props.get('display') as string;
+						const description = props.get('description') as string;
 						table.simples.set(ident, new MythicObjectMeta(ThingFamily.Simple, ident, description, display));
 					});
 					break;

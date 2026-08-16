@@ -12,7 +12,6 @@ import { DEFAULT_SETTINGS, MythicSettingTab, MythicSupportPluginSettings } from 
 import { CodeBlock } from './codeblock.js';
 import 'reflect-metadata';
 import { Scene, SceneModal } from './scene.js';
-import { Thread, ThreadModal } from './old/thread.js';
 import { Adventure, AdventureModal } from './adventure.js';
 import { MythicObject, MythicObjectModal } from './object.js';
 import { Question, QuestionModal } from './question.js';

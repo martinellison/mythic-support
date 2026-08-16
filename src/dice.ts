@@ -58,21 +58,23 @@ export class Dice {
 		let m = Dice.match(this.text);
 		// console.log("dice match is ", m);
 		let res = 0;
-		for (let element of m) {
-			let part = 0;
-			if (element != null && element.groups !== undefined) {
-				const g0 = element.groups;
-				if (g0 !== undefined) {
-					const numDice = parseInt(g0.numDice ?? "1") ?? 1;
-					const die = parseInt(g0.die ?? "1") ?? 1;
-					for (let i = 0; i < numDice; i++)
-						part += Question.dice(die);
-					if (g0.sign == "-")
-						part = -part;
-					console.log(`dice ${g0.sign} ${numDice} d ${die} = ${part}`);
+		if (m !== undefined) {
+			for (let element of m) {
+				let part = 0;
+				if (element != null && element.groups !== undefined) {
+					const g0 = element.groups;
+					if (g0 !== undefined) {
+						const numDice = parseInt(g0.numDice ?? "1") ?? 1;
+						const die = parseInt(g0.die ?? "1") ?? 1;
+						for (let i = 0; i < numDice; i++)
+							part += Question.dice(die);
+						if (g0.sign == "-")
+							part = -part;
+						console.log(`dice ${g0.sign} ${numDice} d ${die} = ${part}`);
+					}
 				}
+				res += part;
 			}
-			res += part;
 		}
 		console.log("dice result is", res);
 		return res;
