@@ -3,10 +3,7 @@ import { Type, plainToInstance, instanceToPlain } from 'class-transformer';
 import { Modal, App, Setting, MarkdownPostProcessorContext } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
 // import { MythicSupportPluginSettings } from './settings.js';
-import { Tables } from './tables2.js';
-import { MeaningKind, RandomEvent } from './randomevent.js';
 import MythicSupportPlugin, { assertDefined } from './main.js';
-import { Metadata } from './metadata.js';
 import { Question } from './question.js';
 
 const diceRegex: RegExp = /(?<sign>[-+]?)(?<numDice>[1-9]+)([dD](?<die>[0-9]+))?/g;
@@ -31,7 +28,7 @@ export class Dice {
 	}
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext) {
 		// assertDefined(tables);
-		console.log("rendering scene", source);
+		// console.log("rendering scene", source);
 		const dice: Dice = Dice.fromJson(source);
 		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-dice' });
 		divElt.createSpan({ text: "Dice " });
@@ -46,17 +43,17 @@ export class Dice {
 		if (diceRegex == null) { console.error("bad regexp"); }
 		else {
 			for (let element of s.matchAll(diceRegex)) {
-				console.log("match", element);
+				// console.log("match", element);
 			};
 			let m = s.matchAll(diceRegex);
-			console.log("dice match is ", m);
+			// console.log("dice match is ", m);
 			return m;
 		}
 		return undefined;
 	}
 	throw(): number {
 		let m = Dice.match(this.text);
-		// console.log("dice match is ", m);
+		// // console.log("dice match is ", m);
 		let res = 0;
 		if (m !== undefined) {
 			for (let element of m) {
@@ -70,13 +67,13 @@ export class Dice {
 							part += Question.dice(die);
 						if (g0.sign == "-")
 							part = -part;
-						console.log(`dice ${g0.sign} ${numDice} d ${die} = ${part}`);
+						// console.log(`dice ${g0.sign} ${numDice} d ${die} = ${part}`);
 					}
 				}
 				res += part;
 			}
 		}
-		console.log("dice result is", res);
+		// console.log("dice result is", res);
 		return res;
 	};
 }
@@ -110,7 +107,7 @@ export class DiceModal extends Modal {
 				.onClick(async (): Promise<void> => {
 					this.close();
 					let match = Dice.match(this.dice.text);
-					console.log("saving dice", dice.text, match);
+					// console.log("saving dice", dice.text, match);
 					dice.result = dice.throw();
 					const json = dice.toJson();
 					let editor = app.workspace.activeEditor?.editor;

@@ -1,7 +1,7 @@
 import { plainToInstance, instanceToPlain } from 'class-transformer';
 import { Modal, App, Setting, MarkdownPostProcessorContext } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
-import { MythicObjectMeta, Tables, ThingFamily } from './tables2.js';
+import { MythicObjectMeta, ThingFamily } from './tables2.js';
 import { assertDefined } from './main.js';
 
 // object text should come after a object block
@@ -35,14 +35,14 @@ export class MythicObject {
 		if (object.name !== "")
 			divElt.createSpan({ text: ` ${object.name}` });
 		divElt.createSpan({ text: `: ${object.description.trim()}` });
-		// console.log("character to", el);
+		// // console.log("character to", el);
 	}
 }
 export class MythicObjectModal extends Modal {
 	object: MythicObject;
 	constructor(app: App, object: MythicObject, block: CodeBlock, kind: MythicObjectMeta) {
 		super(app);
-		console.log("create object modal", kind);
+		// console.log("create object modal", kind);
 		assertDefined(kind);
 		this.object = object;
 		this.setTitle(kind.displayName);

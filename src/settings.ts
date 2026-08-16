@@ -1,4 +1,4 @@
-import { App, debounce, PluginSettingTab, Setting, SettingDefinitionItem, TFolder } from 'obsidian';
+import { App, debounce, PluginSettingTab, SettingDefinitionItem } from 'obsidian';
 import MythicSupportPlugin from './main.js';
 import { CheckTableEntry } from './tables2.js';
 

@@ -28,16 +28,16 @@ export default class MythicSupportPlugin extends Plugin {
 	tables: Tables = new Tables();
 	metadata: Metadata = new Metadata(this);
 	async onCreate() {
-		console.log("starting plugin create");
+		// console.log("starting plugin create");
 		await this.metadata.load(this.app.metadataCache, this.app.vault, this);
 		await this.metadata.scanAllFiles(this.app.metadataCache, this.app.vault, this);
-		console.log("plugin create ended");
+		// console.log("plugin create ended");
 	}
 
 	async onload() {
-		console.log('loading MythicSupportPlugin');
+		// console.log('loading MythicSupportPlugin');
 		this.app.workspace.onLayoutReady(async () => {
-			console.log("layout ready");
+			// console.log("layout ready");
 			//this.registerEvent(this.app.vault.on('create', this.onCreate.bind(this), this));
 			await this.onCreate();
 			this.tables = await KdlTables.load(this.app.vault);
@@ -87,7 +87,7 @@ export default class MythicSupportPlugin extends Plugin {
 						}
 						case MythicObjectKind.MythicObject: {
 							const meta = this.tables.meta(objectKind);
-							console.log("meta for", objectKind);
+							// console.log("meta for", objectKind);
 							assertDefined(meta);
 							let object = new MythicObject(objectKind, "", "");
 							let block = new CodeBlock(
@@ -98,16 +98,16 @@ export default class MythicSupportPlugin extends Plugin {
 							new MythicObjectModal(this.app, object, block, meta).open();
 							break;
 						}
-						case MythicObjectKind.Thread: {
-							let thread = new Thread('');
-							let block = new CodeBlock(
-								cursor.line,
-								cursor.line,
-								'thread',
-							);
-							new ThreadModal(this.app, thread, block).open();
-							break;
-						}
+						// case MythicObjectKind.Thread: { // TODO fix
+						// 	let thread = new Thread(''); // TODO fix thread/Thread passim this file
+						// 	let block = new CodeBlock(
+						// 		cursor.line,
+						// 		cursor.line,
+						// 		'thread',
+						// 	);
+						// 	new ThreadModal(this.app, thread, block).open();
+						// 	break;
+						// }
 						case MythicObjectKind.Dice: {
 							let dice = new Dice('');
 							let block = new CodeBlock(
@@ -167,12 +167,12 @@ export default class MythicSupportPlugin extends Plugin {
 								new QuestionModal(this.app, question, block, this.tables, this).open();
 							}
 							break;
-						case Thread.TAG:
-							{
-								let thread = Thread.fromJson(source);
-								new ThreadModal(this.app, thread, block).open();
-							}
-							break;
+						// case Thread.TAG:
+						// 	{
+						// 		let thread = Thread.fromJson(source);
+						// 		new ThreadModal(this.app, thread, block).open();
+						// 	}
+						// 	break;
 						case Dice.TAG:
 							{
 								let dice = Dice.fromJson(source);
@@ -219,7 +219,7 @@ export default class MythicSupportPlugin extends Plugin {
 		this.registerMarkdownCodeBlockProcessor(
 			Scene.TAG,
 			(source, el, ctx) => {
-				console.log("generation scene html");
+				// console.log("generation scene html");
 				Scene.toHtml(source, el, ctx, this.tables);
 			},
 		);
@@ -229,12 +229,12 @@ export default class MythicSupportPlugin extends Plugin {
 				Question.toHtml(source, el, ctx, this.tables);
 			},
 		);
-		this.registerMarkdownCodeBlockProcessor(
-			Thread.TAG,
-			(source, el, ctx) => {
-				Thread.toHtml(source, el, ctx);
-			},
-		);
+		// this.registerMarkdownCodeBlockProcessor(
+		// 	Thread.TAG,
+		// 	(source, el, ctx) => {
+		// 		Thread.toHtml(source, el, ctx);
+		// 	},
+		// );
 		this.registerMarkdownCodeBlockProcessor(
 			Dice.TAG,
 			(source, el, ctx) => {
@@ -250,27 +250,27 @@ export default class MythicSupportPlugin extends Plugin {
 		this.registerMarkdownCodeBlockProcessor(
 			Adventure.TAG,
 			(source, el, ctx) => {
-				console.log("generation adventure html");
+				// console.log("generation adventure html");
 				Adventure.toHtml(source, el, ctx, this.metadata, this.tables);
 			},
 		);
 		this.addSettingTab(new MythicSettingTab(this.app, this));
-		console.log("MythicSupportPlugin plugin loaded");
+		// console.log("MythicSupportPlugin plugin loaded");
 	}
 
 	onunload() {
-		console.log('unloading MythicSupportPlugin');
+		// console.log('unloading MythicSupportPlugin');
 		this.metadata.unload(this.app.metadataCache);
 	}
 
 	async loadSettings() {
-		console.log("loading settings");
+		// console.log("loading settings");
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
 			(await this.loadData()) as Partial<MythicSupportPluginSettings>,
 		);
-		console.log("settings loaded");
+		// console.log("settings loaded");
 	}
 
 	async saveSettings() {
@@ -284,7 +284,7 @@ export default class MythicSupportPlugin extends Plugin {
 export const enum MythicObjectKind {
 	Scene = 'scene',
 	Question = 'question',
-	Thread = 'thread',
+	// Thread = 'thread',
 	MythicObject = 'object',
 	Dice = 'dice',
 	Adventure = 'adventure',

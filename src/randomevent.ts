@@ -22,7 +22,7 @@ export class RandomEvent {
 	focusDescr(tables: Tables): CheckTableEntry { return Tables.resolveCheckTable(tables.chances, this.event_focus); }
 	interpret(tables: Tables, metadata: Metadata) {
 		const focus_descr = this.focusDescr(tables);
-		console.log("random event: interpreting focus", this.event_focus, focus_descr);
+		// console.log("random event: interpreting focus", this.event_focus, focus_descr);
 		if (metadata === undefined) console.error("no metadata");
 		else if (metadata.blockTable === undefined) console.error("no blockTable");
 		let has_kind = tables.objectKinds.has(focus_descr.interpretation);
@@ -31,11 +31,11 @@ export class RandomEvent {
 			if (objects.length == 0) console.warn("no objects to select from");
 			const objectNumber = Math.floor(objects.length * this.objectRandom);
 			this.object = objects[objectNumber]?.description ?? "??";
-			console.log(`random object ${objectNumber} is ${this.object}`);
+			// console.log(`random object ${objectNumber} is ${this.object}`);
 		} else {
 			switch (focus_descr.interpretation) {
 				case Interpretation.None:
-					console.log("no interpretation");
+					// console.log("no interpretation");
 					break;
 				case Interpretation.Thread:
 				case Interpretation.NPC: {
@@ -43,13 +43,13 @@ export class RandomEvent {
 				}
 					break;
 				case Interpretation.NewNPC:
-					console.log("new NPC");
+					// console.log("new NPC");
 					break;// TODO explain interpretation (new NPC)
 			}
 		}
 	}
 	explain(tables: Tables): string {
-		console.log("random event: explaining ");
+		// console.log("random event: explaining ");
 		// two separate tables for some MeaningKind, only one for the rest
 		// const q1: number = this.event_meaning[0] ?? 0;
 		// const q2: number = this.event_meaning[1] ?? 0;
