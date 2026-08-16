@@ -1,0 +1,9 @@
+{
+    "id": "mythic-support",
+    "name": "Mythic GME",
+    "version": "0.0.1",
+    "minAppVersion": "1.13.0",
+    "description": "Support the Mythic Game Master Emulator.",
+    "author": "Martin Ellison",
+    "isDesktopOnly": false
+}

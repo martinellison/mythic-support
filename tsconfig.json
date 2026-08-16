@@ -1,0 +1,28 @@
+{
+    "compilerOptions": {
+        "inlineSourceMap": true,
+        "inlineSources": true,
+        "module": "Node16",
+        "target": "ES2021",
+        "strict": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "moduleResolution": "node16",
+        "isolatedModules": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "allowSyntheticDefaultImports": true,
+        "lib": ["ES2021", "DOM"],
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "types": ["@obsidian-typings/obsidian-public-latest"],
+        "paths": {
+            "@obsidian-typings/obsidian-public-latest/implementations": [
+                "./node_modules/@obsidian-typings/obsidian-public-latest/implementations.d.ts",
+                "./node_modules/@obsidian-typings/obsidian-public-latest/implementations.cjs"
+            ]
+        }
+    },
+    "include": ["src/**/*.ts"]
+}

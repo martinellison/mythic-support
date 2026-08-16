@@ -1,0 +1,82 @@
+.mythic-scene {
+    text-color: green;
+    color: lightblue;
+    display: inline;
+}
+.mythic-scene:before {
+    content: '«';
+}
+.mythic-scene:after {
+    content: '»';
+}
+.mythic-object {
+    text-color: black;
+    color: gray;
+    display: inline;
+}
+.mythic-object:before {
+    content: '«';
+}
+.mythic-object:after {
+    content: '»';
+}
+.mythic-question {
+    text-color: black;
+    color: pink;
+    display: inline;
+}
+.mythic-thread {
+    text-color: green;
+    color: sandybrown;
+    display: inline;
+}
+.mythic-character {
+    text-color: indigo;
+    color: cyan;
+    display: inline;
+}
+.mythic-character:before {
+    content: '«';
+}
+.mythic-character:after {
+    content: '»';
+}
+.mythic-adventure {
+    text-color: black;
+    color: yellow;
+    display: inline;
+}
+.mythic-adventure:before {
+    content: '«';
+}
+.mythic-adventure:after {
+    content: '»';
+}
+.mythic-removed {
+    text-decoration: line-through;
+}
+.mythic-random {
+    text-color: purple;
+    color: magenta;
+    display: inline;
+}
+.mythic-random:before {
+    content: '«';
+}
+.mythic-random:after {
+    content: '»';
+}
+.mythic-dice {
+    text-color: purple;
+    color: turquoise;
+    display: inline;
+}
+.mythic-dice:before {
+    content: '«';
+}
+.mythic-dice:after {
+    content: '»';
+}
+.mythic-removed {
+    text-decoration: line-through;
+}
