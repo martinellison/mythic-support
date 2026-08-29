@@ -5,10 +5,11 @@
         "module": "Node16",
         "target": "ES2021",
         "strict": true,
+        "strictNullChecks": true,
         "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true,
         "noUncheckedIndexedAccess": true,
-        "moduleResolution": "node16",
+        "moduleResolution": "nodenext",
         "isolatedModules": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
@@ -17,6 +18,7 @@
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "types": ["@obsidian-typings/obsidian-public-latest"],
+        // "allowImportingTsExtensions": true,
         "paths": {
             "@obsidian-typings/obsidian-public-latest/implementations": [
                 "./node_modules/@obsidian-typings/obsidian-public-latest/implementations.d.ts",

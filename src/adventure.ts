@@ -1,11 +1,11 @@
 import { plainToInstance, instanceToPlain } from 'class-transformer';
 import { Modal, App, Setting, MarkdownPostProcessorContext, } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
-import MythicSupportPlugin, { assertDefined } from './main.js';
+import MythicSupportPlugin, { assertDefined, mTrace } from './main.js';
 import { Metadata } from './metadata.js';
 import { Tables } from './tables2.js';
 
-// adventure text should come after a adventure block
+/** adventure text should come after a adventure block */
 export class Adventure {
 	static readonly TAG = "mythic-adventure";
 	description: string;
@@ -16,39 +16,35 @@ export class Adventure {
 		this.showLists = false;
 		this.count = 0;
 	}
+	/** convert from a JSON string */
 	static fromJson(source: string): Adventure {
 		// @ts-ignore
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
 		let adventure: Adventure = plainToInstance(Adventure, JSON.parse(source));
 		return adventure;
 	}
+	/** convert to a JSON string */
 	toJson(): string {
 		return JSON.stringify(instanceToPlain(this));
 	}
+	/** create HTML for display */
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext, metadata: Metadata, tables: Tables): void {
 		assertDefined(tables);
 		const adventure: Adventure = Adventure.fromJson(source);
 		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-adventure' });
-		divElt.createSpan({ text: "Adventure: " });
+		divElt.createSpan({ text: "(adventure) " });
 		divElt.createEl('i', { text: adventure.description.trim(), });
 		if (adventure.showLists && tables.objectKinds !== undefined) { // LATER recode to pull all objects using one call
 			tables.objectKinds.forEach((kind, ident) => {
 				let kindElt = divElt.createDiv();
 				kindElt.createEl('b', { text: `${kind.displayName}: ` });
-				const objects = metadata.blockTable.objects(ident).map(ch => ch.name);
-				// console.log("for adventure", ident, kind, objects);
+				const objects = metadata.blockTable.objects(ident).map(ch => (ch.marker !== undefined && ch.marker.trim() != "" ? ` [${ch.marker}] ` : "") + ch.name);
+				mTrace('adventure', "for adventure", ident, kind, objects);
 				kindElt.createSpan({ text: ` ${objects.join(", ")}` });
-				// console.log((`${ident}: found ${objects.length}`));
+				mTrace('adventure', (`${ident}: found ${objects.length}`));
 			});
 		}
 	}
-	// static getRandomMythicObject(vault: Vault): MythicObject {
-	// 	const files = vault.getMarkdownFiles();
-	// 	for (let i = 0; i < files.length; i++) {
-	// 		let f = files[i];
-	// 		if (f !== undefined) { let txt = vault.cachedRead(f); }
-	// 	}
-	// }
 }
 export class AdventureModal extends Modal {
 	adventure: Adventure;
@@ -85,8 +81,7 @@ export class AdventureModal extends Modal {
 					let editor = app.workspace.activeEditor?.editor;
 					if (editor !== undefined)
 						block.replaceContents(Adventure.TAG, json, editor);
-				}));
-		new Setting(this.contentEl)
+				}))
 			.addButton((btn) => btn
 				.setButtonText('Cancel')
 				.setCta()
@@ -100,10 +95,6 @@ export class AdventureModal extends Modal {
 				.onClick(async () => {
 					// this.statusDisplay?.setValue("loading...");
 					await plugin.metadata.scanAllFiles(this.app.metadataCache, this.app.vault, plugin);
-					// this.statusDisplay?.setValue("loaded");
 				}));
-		// const displaySetting = new Setting(this.contentEl).addDisplayValue(async (display) => { display.setValue("wait..."); });
-
-		// this.statusDisplay = displaySetting.components[0] as DisplayValueComponent;
 	}
 }

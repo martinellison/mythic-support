@@ -19,34 +19,55 @@ import { MythicObjectMeta, Tables } from './tables2.js';
 import { Metadata } from './metadata.js';
 import { KdlTables } from './tables2.js';
 import { Dice, DiceModal } from './dice.js';
+import { Meaning, MeaningModal } from './meaning.js';
+/** this checks whether a value exists and throws an error otherwise. */
 export function assertDefined<T>(value: T | undefined | null): asserts value is T {
 	if (value === undefined || value == null) throw new Error('Value is undefined or null');
 }
-
+/** displays a trace message if required */
+export function mTrace(narr: string, ...vals: any[]): void {
+	// // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
+	// console.log("mythic", `${narr}: `, ...vals);
+}
+/** shorten a string. */
+export function shorten(s: string): string {
+	const SHORTlENGTH = 30;
+	return s.length < SHORTlENGTH ? s : s.substring(1, SHORTlENGTH) + "...";
+}
 export default class MythicSupportPlugin extends Plugin {
 	settings!: MythicSupportPluginSettings;
 	tables: Tables = new Tables();
 	metadata: Metadata = new Metadata(this);
+
+	/** displays a message to the user, for example if a user error has been detected. `async` version. */
+	public static async displayMessage(app: App, msg: string) {
+		const modal = new Modal(app);
+		modal.contentEl.appendText(`error: ${msg}`);
+		modal.open();
+		await Promise.resolve();
+	}
 	async onCreate() {
-		// console.log("starting plugin create");
+		mTrace('main', "starting plugin create");
 		await this.metadata.load(this.app.metadataCache, this.app.vault, this);
 		await this.metadata.scanAllFiles(this.app.metadataCache, this.app.vault, this);
-		// console.log("plugin create ended");
+		mTrace('main', "plugin create ended");
 	}
 
 	async onload() {
-		// console.log('loading MythicSupportPlugin');
+		mTrace('main', 'loading MythicSupportPlugin');
 		this.app.workspace.onLayoutReady(async () => {
-			// console.log("layout ready");
-			//this.registerEvent(this.app.vault.on('create', this.onCreate.bind(this), this));
+			mTrace('main', "layout ready");
 			await this.onCreate();
 			this.tables = await KdlTables.load(this.app.vault);
-			// if (this.metadata !== undefined)
-			// 	await this.metadata.runBlockTableQueue(this.app.vault, this.app.metadataCache);
+			mTrace("plugin", "tables loaded", this.tables);
+			if (this.tables.result.trim() != "") {
+				console.error("could not load KDL:", this.tables.result);
+				await MythicSupportPlugin.displayMessage(this.app, `${this.tables.result}`);
+			}
 		});
 		await this.loadSettings();
 
-		// Command to create a new Mythic object
+		/** Command to create a new Mythic object */
 		this.addCommand({
 			id: 'mythic-create',
 			name: 'Create a Mythic object',
@@ -72,7 +93,7 @@ export default class MythicSupportPlugin extends Plugin {
 								cursor.line,
 								'scene',
 							);
-							new SceneModal(this.app, scene, block, this.tables, this).open();
+							new SceneModal(true, this.app, scene, block, this.tables, this).open();
 							break;
 						}
 						case MythicObjectKind.Question: {
@@ -87,27 +108,17 @@ export default class MythicSupportPlugin extends Plugin {
 						}
 						case MythicObjectKind.MythicObject: {
 							const meta = this.tables.meta(objectKind);
-							// console.log("meta for", objectKind);
+							mTrace('main', "meta for", objectKind);
 							assertDefined(meta);
-							let object = new MythicObject(objectKind, "", "");
+							let object = new MythicObject(objectKind, "", "", "");
 							let block = new CodeBlock(
 								cursor.line,
 								cursor.line,
 								'object',
 							);
-							new MythicObjectModal(this.app, object, block, meta).open();
+							new MythicObjectModal(this.app, object, block, this.tables, meta).open();
 							break;
 						}
-						// case MythicObjectKind.Thread: { // TODO fix
-						// 	let thread = new Thread(''); // TODO fix thread/Thread passim this file
-						// 	let block = new CodeBlock(
-						// 		cursor.line,
-						// 		cursor.line,
-						// 		'thread',
-						// 	);
-						// 	new ThreadModal(this.app, thread, block).open();
-						// 	break;
-						// }
 						case MythicObjectKind.Dice: {
 							let dice = new Dice('');
 							let block = new CodeBlock(
@@ -116,6 +127,16 @@ export default class MythicSupportPlugin extends Plugin {
 								'dice',
 							);
 							new DiceModal(this.app, dice, block).open();
+							break;
+						}
+						case MythicObjectKind.Meaning: {
+							let meaning = new Meaning('action1');
+							let block = new CodeBlock(
+								cursor.line,
+								cursor.line,
+								'meaning',
+							);
+							new MeaningModal(this.app, meaning, block, this.tables).open();
 							break;
 						}
 						case MythicObjectKind.Adventure: {
@@ -158,7 +179,7 @@ export default class MythicSupportPlugin extends Plugin {
 						case Scene.TAG:
 							{
 								let scene = Scene.fromJson(source);
-								new SceneModal(this.app, scene, block, this.tables, this).open();
+								new SceneModal(false, this.app, scene, block, this.tables, this).open();
 							}
 							break;
 						case Question.TAG:
@@ -167,16 +188,16 @@ export default class MythicSupportPlugin extends Plugin {
 								new QuestionModal(this.app, question, block, this.tables, this).open();
 							}
 							break;
-						// case Thread.TAG:
-						// 	{
-						// 		let thread = Thread.fromJson(source);
-						// 		new ThreadModal(this.app, thread, block).open();
-						// 	}
-						// 	break;
 						case Dice.TAG:
 							{
 								let dice = Dice.fromJson(source);
 								new DiceModal(this.app, dice, block).open();
+							}
+							break;
+						case Meaning.TAG:
+							{
+								let meaning = Meaning.fromJson(source);
+								new MeaningModal(this.app, meaning, block, this.tables).open();
 							}
 							break;
 						case MythicObject.TAG:
@@ -184,7 +205,7 @@ export default class MythicSupportPlugin extends Plugin {
 								let object = MythicObject.fromJson(source);
 								const meta = this.tables.meta(object.kind);
 								assertDefined(meta);
-								new MythicObjectModal(this.app, object, block, meta).open();
+								new MythicObjectModal(this.app, object, block, this.tables, meta).open();
 							}
 							break;
 						case Adventure.TAG:
@@ -202,24 +223,11 @@ export default class MythicSupportPlugin extends Plugin {
 				return true;
 			},
 		});
-		this.addCommand({
-			id: 'mythic-bump',
-			name: 'Rescan lists TODO not coded yet',
-			callback: (
-				// checking: boolean,
-				// editor: Editor,
-				// view: MarkdownView | MarkdownFileInfo,
-			): boolean => {
-				// if (checking) { return true; }
-				// TODO code to fix all lists should go here but async?)
-				return true;
-			}
-		});
 
 		this.registerMarkdownCodeBlockProcessor(
 			Scene.TAG,
 			(source, el, ctx) => {
-				// console.log("generation scene html");
+				mTrace('main', "generation scene html");
 				Scene.toHtml(source, el, ctx, this.tables);
 			},
 		);
@@ -229,12 +237,6 @@ export default class MythicSupportPlugin extends Plugin {
 				Question.toHtml(source, el, ctx, this.tables);
 			},
 		);
-		// this.registerMarkdownCodeBlockProcessor(
-		// 	Thread.TAG,
-		// 	(source, el, ctx) => {
-		// 		Thread.toHtml(source, el, ctx);
-		// 	},
-		// );
 		this.registerMarkdownCodeBlockProcessor(
 			Dice.TAG,
 			(source, el, ctx) => {
@@ -242,35 +244,41 @@ export default class MythicSupportPlugin extends Plugin {
 			},
 		);
 		this.registerMarkdownCodeBlockProcessor(
-			MythicObject.TAG,
+			Meaning.TAG,
 			(source, el, ctx) => {
-				MythicObject.toHtml(source, el, ctx);
+				Meaning.toHtml(source, el, ctx);
+			},
+		);
+		this.registerMarkdownCodeBlockProcessor(
+			MythicObject.TAG,
+			(source, el, ctx,) => {
+				MythicObject.toHtml(source, el, ctx, this.tables);
 			},
 		);
 		this.registerMarkdownCodeBlockProcessor(
 			Adventure.TAG,
 			(source, el, ctx) => {
-				// console.log("generation adventure html");
+				mTrace('main', "generation adventure html");
 				Adventure.toHtml(source, el, ctx, this.metadata, this.tables);
 			},
 		);
 		this.addSettingTab(new MythicSettingTab(this.app, this));
-		// console.log("MythicSupportPlugin plugin loaded");
+		mTrace('main', "MythicSupportPlugin plugin loaded");
 	}
 
 	onunload() {
-		// console.log('unloading MythicSupportPlugin');
+		mTrace('main', 'unloading MythicSupportPlugin');
 		this.metadata.unload(this.app.metadataCache);
 	}
 
 	async loadSettings() {
-		// console.log("loading settings");
+		mTrace('main', "loading settings");
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
 			(await this.loadData()) as Partial<MythicSupportPluginSettings>,
 		);
-		// console.log("settings loaded");
+		mTrace('main', "settings loaded");
 	}
 
 	async saveSettings() {
@@ -284,40 +292,39 @@ export default class MythicSupportPlugin extends Plugin {
 export const enum MythicObjectKind {
 	Scene = 'scene',
 	Question = 'question',
-	// Thread = 'thread',
 	MythicObject = 'object',
 	Dice = 'dice',
+	Meaning = 'meaning',
 	Adventure = 'adventure',
 }
 export class CreateModal extends Modal {
-	// onCreate: () => undefined = () => {},
 	constructor(app: App, tables: Tables, onCreate: (kind: MythicObjectKind, meta: string) => void) {
 		let kind: MythicObjectKind = MythicObjectKind.Scene;
 		let meta: string = "";
 		super(app);
-		// this.onCreate =  onCreate;
 		this.setTitle('Create object');
 		new Setting(this.contentEl).setName('Kind').addDropdown((dropDown) => {
-			dropDown.addOptions({ scene: 'Scene', question: 'Question', dice: 'Dice', adventure: 'Adventure' });
+			dropDown.addOptions({ scene: 'Scene', question: 'Question', meaning: 'Meaning', adventure: 'Adventure', dice: 'Dice', });
 			tables.objectKinds.forEach((kind: MythicObjectMeta, ident: string) => {
 				dropDown.addOption(ident, kind.displayName);
-			});
-			tables.simples.forEach((kind: MythicObjectMeta, ident: string) => {
-				dropDown.addOption(ident, kind.displayName);
-			});
-			tables.randoms.forEach((random, ident: string) => {
-				dropDown.addOption(ident, random.meta.displayName);
 			});
 			dropDown.onChange((value) => {
 				switch (value) {
 					case 'scene': kind = MythicObjectKind.Scene; break;
 					case 'question': kind = MythicObjectKind.Question; break;
 					case 'dice': kind = MythicObjectKind.Dice; break;
+					case 'meaning': kind = MythicObjectKind.Meaning; break;
 					case 'adventure': kind = MythicObjectKind.Adventure; break;
 					default:
 						kind = MythicObjectKind.MythicObject;
 						meta = value;
 				}
+			});
+			tables.simples.forEach((kind: MythicObjectMeta, ident: string) => {
+				dropDown.addOption(ident, kind.displayName);
+			});
+			tables.oracles.forEach((oracle, ident: string) => {
+				dropDown.addOption(ident, oracle.meta.displayName);
 			});
 		});
 		new Setting(this.contentEl).addButton((btn) =>
@@ -328,8 +335,7 @@ export class CreateModal extends Modal {
 					this.close();
 					onCreate(kind, meta);
 				}),
-		);
-		new Setting(this.contentEl).addButton((btn) =>
+		).addButton((btn) =>
 			btn
 				.setButtonText('Cancel')
 				.setCta()

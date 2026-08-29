@@ -1,9 +1,7 @@
 import { App, debounce, PluginSettingTab, SettingDefinitionItem } from 'obsidian';
 import MythicSupportPlugin from './main.js';
-import { CheckTableEntry } from './tables2.js';
 
 export interface MythicSupportPluginSettings {
-	// adventureName: string;
 	adventureFolder: string;
 	autoScanLists: boolean;
 }
@@ -32,44 +30,5 @@ export class MythicSettingTab extends PluginSettingTab {
 			{ name: "Adventure folder", desc: "folder containing the current adventure", control: { type: 'folder', defaultValue: this.app.vault.getRoot().path, key: '?' } },
 		];
 	}
-	// display(): void {
-	//     const { containerEl } = this;
-
-	//     containerEl.empty();
-
-	//     new Setting(containerEl).setName('Adventure')
-	//         .setDesc('The identifier of your current adventure')
-	//         .addTextArea((text) => {
-	//             text.setValue(this.plugin.settings.adventureName);
-	//             text.onChange(async (value) => {
-	//                 this.plugin.settings.adventureName = value;
-	//                 await this.plugin.saveSettings();
-	//             });
-	//         });
-	//     new Setting(containerEl)
-	//         .setName('AutoScan')
-	//         .setDesc('If checked, this plugin will scan for lists automatically (uncheck if Obsidian is slow)')
-	//         .addToggle((flag) => {
-	//             flag.setValue(this.plugin.settings.autoScanLists);
-	//             flag.onChange(async (value) => {
-	//                 this.plugin.settings.autoScanLists = value;
-	//                 await this.plugin.saveSettings();
-	//             });
-	//         });
-	//     new Setting(containerEl)
-	//         .addButton((btn) => btn
-	//             .setButtonText('Scan files for lists')
-	//             .setCta()
-	//             .onClick(async () => {
-	//                 await this.plugin.metadata.scanAllFiles(this.app.metadataCache, this.app.vault, this.plugin);
-	//             }));
-	//     // new Setting(containerEl)
-	//     // 	.addButton((btn) => btn
-	//     // 		.setButtonText('Close')
-	//     // 		.setCta()
-	//     // 		.onClick(() => {
-	//     // 			this.close();
-	//     // 		}));
-	// }
 }
 

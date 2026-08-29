@@ -3,37 +3,45 @@ import { Type, plainToInstance, instanceToPlain } from 'class-transformer';
 import { Modal, App, Setting, MarkdownPostProcessorContext } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
 // import { MythicSupportPluginSettings } from './settings.js';
-import MythicSupportPlugin, { assertDefined } from './main.js';
+import MythicSupportPlugin, { assertDefined, mTrace } from './main.js';
 import { Question } from './question.js';
 
-const diceRegex: RegExp = /(?<sign>[-+]?)(?<numDice>[1-9]+)([dD](?<die>[0-9]+))?/g;
-// dice text should come after a dice block
+const diceRegex: RegExp = /(?<sign>[-+]?)(?<numDice>[1-9]+)?([dD](?<die>[0-9]+))?/g;
+/** dice text should come after a dice block */
 export class Dice {
 	text: string;
 	result: number = 0;
+	explain: string = "";
 	description: string = "";
 	static readonly TAG = 'mythic-dice';
 
 	constructor(text: string) {
 		this.text = text;
 	}
+	/** convert from a JSON string */
 	static fromJson(source: string): Dice {
 		// @ts-ignore
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
 		let dice: Dice = plainToInstance(Dice, JSON.parse(source));
 		return dice;
 	}
+	/** convert to a JSON string */
 	toJson(): string {
 		return JSON.stringify(instanceToPlain(this));
 	}
+	/** create HTML for display */
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext) {
-		// assertDefined(tables);
-		// console.log("rendering scene", source);
-		const dice: Dice = Dice.fromJson(source);
+		mTrace('dice', "rendering scene", source);
 		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-dice' });
-		divElt.createSpan({ text: "Dice " });
-		divElt.createEl('i', { text: `(${dice.description}: ${dice.text}) = ` });
-		divElt.createSpan({ text: `${dice.result}` });
+		try {
+			const dice: Dice = Dice.fromJson(source);
+			divElt.createSpan({ text: `(dice) ${dice.description}:` });
+			divElt.createEl('i', { text: ` ${dice.text} =` });
+			divElt.createEl('b', { text: ` ${dice.result}` });
+			divElt.createSpan({ text: ` (${dice.explain})` });
+		} catch (error) {
+			divElt.createSpan({ text: `error in parsing dice: ${error as Error}`, cls: 'mythic-error' });
+		}
 	}
 	static matches(s: string): boolean {
 		return diceRegex.test(s);
@@ -42,40 +50,91 @@ export class Dice {
 		assertDefined(diceRegex);
 		if (diceRegex == null) { console.error("bad regexp"); }
 		else {
-			for (let element of s.matchAll(diceRegex)) {
-				// console.log("match", element);
-			};
+			// for (let element of s.matchAll(diceRegex)) {
+			// 	mTrace('', "match", element);
+			// };
 			let m = s.matchAll(diceRegex);
-			// console.log("dice match is ", m);
+			// mTrace('', "dice match is ", m);
 			return m;
 		}
 		return undefined;
 	}
-	throw(): number {
-		let m = Dice.match(this.text);
-		// // console.log("dice match is ", m);
-		let res = 0;
-		if (m !== undefined) {
-			for (let element of m) {
-				let part = 0;
-				if (element != null && element.groups !== undefined) {
-					const g0 = element.groups;
-					if (g0 !== undefined) {
-						const numDice = parseInt(g0.numDice ?? "1") ?? 1;
-						const die = parseInt(g0.die ?? "1") ?? 1;
-						for (let i = 0; i < numDice; i++)
-							part += Question.dice(die);
-						if (g0.sign == "-")
-							part = -part;
-						// console.log(`dice ${g0.sign} ${numDice} d ${die} = ${part}`);
-					}
-				}
-				res += part;
-			}
+	throw(): [number, string] {
+		const d = new DiceRandom(this.text);
+		return d.throw();
+	}
+}
+/** generates a random number*/
+export class DiceRandom {
+	items: Array<DiceItem> = [];
+	constructor(s: string) {
+		let m = Dice.match(s);
+		if (m === undefined) return;
+		for (let element of m) {
+			if (element == null || element.groups === undefined) continue;
+			const group = element.groups;
+			if (group === undefined || (group.numDice === undefined && group.die === undefined)) continue;
+			const numDice = parseInt(group.numDice ?? "1") ?? 1;
+			const die = parseInt(group.die ?? "1") ?? 1;
+			const sign = group.sign ? group.sign : "+";
+			this.items.push(new DiceItem(sign, numDice, die));
 		}
-		// console.log("dice result is", res);
-		return res;
-	};
+	}
+	/** returns the smallest number that the dice can throw */
+	min(): number {
+		let m = 0;
+		this.items.forEach((item) => {
+			m += item.min();
+		});
+		return m;
+	}
+	/** returns the largest number that the dice can throw */
+	max(): number {
+		let m = 0;
+		this.items.forEach((item) => {
+			m += item.max();
+		});
+		return m;
+	}
+	/** This actually throws the dice, and returns the total and a text breakdown. */
+	throw(): [number, string] {
+		let total = 0;
+		let explains = new Array<string>;
+		this.items.forEach((item) => {
+			const [part, exp] = item.throw();
+			total += part; explains.push(exp);
+		});
+		return [total, explains.join("")];
+	}
+}
+/** part of a random */
+class DiceItem {
+	sign: string = "+";
+	numDice: number = 1;
+	die: number = 1;
+	constructor(sign: string = "+", numDice: number = 1, die: number = 1) {
+		this.sign = sign; this.numDice = numDice; this.die = die;
+	}
+	/** returns the smallest number that the dice can throw */
+	min(): number {
+		return this.numDice * (this.sign == "-" ? - this.die : 1);
+	}
+	/** returns the largest number that the dice can throw */
+	max(): number {
+		return this.numDice * (this.sign == "-" ? -1 : this.die);
+	}
+	throw(): [number, string] {
+		let part = 0;
+		let explains = new Array<string>;
+		for (let i = 0; i < this.numDice; i++) {
+			const thrown = Question.dice(this.die);
+			part += thrown;
+			explains.push(`${this.sign}${thrown}`);
+		}
+		if (this.sign == "-")
+			part = -part;
+		return [part, explains.join("")];
+	}
 }
 
 export class DiceModal extends Modal {
@@ -107,14 +166,15 @@ export class DiceModal extends Modal {
 				.onClick(async (): Promise<void> => {
 					this.close();
 					let match = Dice.match(this.dice.text);
-					// console.log("saving dice", dice.text, match);
-					dice.result = dice.throw();
+					mTrace('dice', "saving dice", dice.text);
+					const [result, explain] = dice.throw();
+					dice.result = result;
+					dice.explain = explain;
 					const json = dice.toJson();
 					let editor = app.workspace.activeEditor?.editor;
 					if (editor !== undefined)
 						block.replaceContents(Dice.TAG, json, editor);
-				}));
-		new Setting(this.contentEl)
+				}))
 			.addButton((btn) => btn
 				.setButtonText('Cancel')
 				.setCta()

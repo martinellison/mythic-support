@@ -1,65 +1,105 @@
-import { parse } from 'kdljs';
+import { parse, ParseResult } from 'kdljs';
 import { Vault } from "obsidian";
 import { Type, plainToInstance, instanceToPlain } from 'class-transformer';
 import { QuestionOdds } from './question.js';
-import { MeaningKind } from './randomevent.js';
-import { assertDefined } from './main.js';
+import { assertDefined, mTrace } from './main.js';
+import { DiceRandom } from './dice.js';
 export const enum Interpretation {
 	None = 'none',
-	Thread = 'thread',
-	NPC = 'npc',
 	NewNPC = 'newnpc',
 }
+/** an entry on a check table. The result of a random selection. The interpretation is what action to take as a result. */
 export class CheckTableEntry {
-	min: number = 0;
+	max: number = 0;
 	weight: number = 0;
 	text: string = "??";
 	interpretation: Interpretation = Interpretation.None;
 	constructor(weight: number = 1, text: string = "", interpretation: Interpretation = Interpretation.None) {
 		// this.min = min;
+		this.max = 0;
 		this.weight = weight ?? 1;
 		this.text = text;
 		this.interpretation = interpretation;
 	}
 }
+/** a check table is a table that can be selected from randomly. */
 class CheckTable {
 	entries: Array<CheckTableEntry> = new Array<CheckTableEntry>;
 	totWeights: number = 0;
-	// min: number = 0;
-	// max: number = 0;
-	numDice: number = 1;
+	diceType?: string;
+	diceMin: number = 0;
 	diceMax: number = 0;
-	fix(entries: Array<CheckTableEntry> = [], numDice: number = 1) {
-		// // console.log("fixing", numDice, entries);
-		this.numDice = numDice;
+	texts(): Array<string> { return this.entries.map((entry) => entry.text); }
+	fix(entries: Array<CheckTableEntry> = [], diceType?: string) {
+		// mTrace('', "fixing", diceType, entries);
+		this.diceType = diceType;
+		this.totWeights = 0;
 		entries.forEach((entry) => {
-			entry.min = this.totWeights;
 			this.totWeights += entry.weight;
-			// // console.log("entry", entry, this.totWeights);
+			// mTrace('', "entry", entry, this.totWeights);
 		});
-		if (this.numDice > 0)
-			this.diceMax = this.totWeights / this.numDice;
+		let w = 0;
+		entries.forEach((entry) => {
+			w += entry.weight;
+			entry.max = w;
+			// mTrace('', "entry", entry, this.totWeights);
+		});
+		if (this.diceType === undefined) {
+			this.diceMax = this.totWeights;
+			this.diceMin = 1;
+		}
+		else {
+			const d = new DiceRandom(this.diceType);
+			this.diceMax = d.max();
+			this.diceMin = d.min();
+		}
 		this.entries = entries;
 	}
+	/** This selects an entry from a table, given a random number. The table must be in increasing order. The tables can be weighted (not all entries have the same probability). `value` is the dice throw and should be 'standardised', meaning that the lowest value should be 1. If the value is too low, the first entry is returned; if too high, the last. */
+	resolve(value: number): CheckTableEntry {
+		mTrace("resolving", value);
+		for (let entry of this.entries) {
+			// mTrace("try", entry.max);
+			if (value <= entry.max) {
+				mTrace('tables', `resolving ${value}, found `, entry);
+				return entry;
+			}
+		}
+		const last = this.entries[this.entries.length - 1];
+		if (last !== undefined) return last;
+		// if there are no entries, return a dummy value
+		return new CheckTableEntry(0, "(unknown)", Interpretation.None);
+	}
 }
-export const enum ThingFamily { Object, Random, Simple };
+/** which kind of object */
+export enum ThingFamily { ThingObject, OracleResponse, SimpleText };
+/** describes some objects, including how to randomise them. */
 export class MythicObjectMeta {
-	family: ThingFamily = ThingFamily.Object;
+	family: ThingFamily = ThingFamily.ThingObject;
 	kind: string = 'object';
 	description: string = "object";
 	displayName: string = "MythicObject";
+	alt: string = "";
+	noAlt: boolean = false;
+	progress: boolean = false;
 	constructor(
-		family: ThingFamily = ThingFamily.Object,
+		family: ThingFamily = ThingFamily.ThingObject,
 		kind: string = 'object',
 		description: string = "object",
-		displayName: string = "MythicObject") {
+		displayName: string = "MythicObject",
+		alt: string = "",
+		noAlt: boolean = false,
+		progress: boolean = false,) {
 		this.family = family;
 		this.kind = kind;
 		this.description = description;
 		this.displayName = displayName;
+		this.alt = alt;
+		this.noAlt = noAlt;
+		this.progress = progress;
 	}
 }
-export class Random {
+export class Oracle {
 	meta: MythicObjectMeta;
 	entries: CheckTable;
 	max: number;
@@ -70,176 +110,343 @@ export class Random {
 		this.entries = entries;
 		this.max = max;
 	}
+	texts(): Array<string> {
+		return this.entries.entries.map((entry) => entry.text);
+	}
 }
+export class MeaningTable {
+	texts: Array<string> = [];
+	alt?: string;
+	noAlt?: boolean;
+	display: string = "";
+	// TODO display name
+	constructor(texts: Array<string> = [],
+		alt?: string,
+		noAlt?: boolean,
+		display: string = "") {
+		this.texts = texts;
+		this.alt = (alt === undefined || alt == "") ? undefined : alt;
+		this.noAlt = noAlt ?? false;
+		this.display = display;
+	}
+}
+/** Tables read from a configuration file. */
 export class Tables {
 	questionOdds: Array<QuestionOdds>;
 	fateCheckAnswers: CheckTable;
 	@Type(() => Array<string>)
-	chances: CheckTable;
-	randoms: Map<string, Random>;
+	eventFocus: CheckTable;
+	oracles: Map<string, Oracle>;
 	simples: Map<string, MythicObjectMeta>;
 	objectKinds: Map<string, MythicObjectMeta>;
-	meaning: Map<MeaningKind, Array<string>>;
+	// meaning: Map<string, MeaningTable>;
+	result: string = ""; // non-empty means error
 	constructor() {
 		this.questionOdds = [];
 		this.fateCheckAnswers = new CheckTable;
-		this.meaning = new Map<MeaningKind, Array<string>>;
-		this.chances = new CheckTable;
-		this.randoms = new Map<string, Random>;
+		// this.meaning = new Map<string, MeaningTable>;
+		this.eventFocus = new CheckTable;
+		this.oracles = new Map<string, Oracle>;
 		this.simples = new Map<string, MythicObjectMeta>;
 		this.objectKinds = new Map<string, MythicObjectMeta>;
+		this.result = "";
 	}
+	/** convert from a JSON string */
 	static async fromJson(source: string): Promise<Tables> {
 		return plainToInstance(Tables, JSON.parse(source));
 	}
-	meta(objectKind: string): MythicObjectMeta {
+	/** this finds the 'meta' for this object kind; it can return undefined if the tables are not loaded yet */
+	meta(objectKind: string): MythicObjectMeta | undefined {
 		const objectMeta = this.objectKinds.get(objectKind);
 		if (objectMeta !== undefined) return objectMeta;
-		const random = this.randoms.get(objectKind);
-		if (random !== undefined) return random.meta;
+		const oracle = this.oracles.get(objectKind);
+		if (oracle !== undefined) return oracle.meta;
 		const simpleMeta = this.simples.get(objectKind);
-		assertDefined(simpleMeta);
+		if (simpleMeta === undefined) {
+			console.error(`cannot find meta for '${objectKind}'`);
+			console.warn("have", this.objectKinds.size, this.oracles.size, this.simples.size);
+			for (let k of this.objectKinds) { console.warn("obj", k[0]); }
+			for (let k of this.oracles) { console.warn("oracles", k[0]); }
+			for (let k of this.simples) { console.warn("simples", k[0]); }
+		}
+		// assertDefined(simpleMeta);
 		return simpleMeta;
 	}
 
-	// table must be in decreasing order
-	static resolveCheckTable(table: CheckTable, value: number): CheckTableEntry {
-		for (let entry of table.entries)
-			if (value >= entry.min)
-				return entry;
-		const last = table.entries[table.entries.length - 1];
-		if (last !== undefined) return last;
-		return new CheckTableEntry(0, "??", Interpretation.None);
-	}
 	getQuestionOdds(ident: string): QuestionOdds {
-		// // console.log("finding odds", ident);
-		for (let o of this.questionOdds) {
-			if (o.ident == ident) return o;
+		// mTrace('', "finding odds", ident);
+		for (let questOdds of this.questionOdds) {
+			if (questOdds.ident == ident) return questOdds;
 		}
-		return this.questionOdds[0] ?? new QuestionOdds("?", 0);
+		return this.questionOdds[0] ?? new QuestionOdds(ident, ident, 0);
 	}
 }
 
 export class KdlTables {
 	static async load(vault: Vault): Promise<Tables> {
-		const file = "tables.md";
+		// mTrace('kdl', "start parsing KDL");
+		let table = new Tables;
+		const files = ["tables.md", "tables-extra.md"];
+		for (let file of files)
+			await KdlTables.loadFromFile(file, table, vault);
+		// mTrace('kdl', "tables", table);
+		return table;
+	}
+	static async getKdl(file: string, table: Tables, vault: Vault): Promise<ParseResult | undefined> {
 		const path = vault.getFileByPath(file);
-		if (path == null) { console.error("bad path for KDL", file, "resolved as", path); return new Tables; }
+		if (path == null) {
+			console.warn("bad path for KDL", file, "resolved as", path);
+			return;
+		}
 		const source = await vault.cachedRead(path);
 		const kdl = parse(source);
+		// mTrace('kdl', "KDL parse result", kdl);
+		if (kdl.errors.length) {
+			for (const e of kdl.errors) console.warn("kdl error", e);
+			if (table.result == "") {
+				const errTxt = kdl.errors.map(ex => `${ex} `).join("\n");
+				table.result = `in parsing KDL: ${errTxt}`;
+			}
+			console.error("bad KDL", table.result);
+		}
+		return kdl;
+	}
+	static getQuestions(children: KdlNode[], table: Tables) {
+		children.forEach((odds: KdlNode) => {
+			// mTrace('', "odds", odds);
+			const ident: string = odds.values[0] as string ?? "";
+			const props = new Map(Object.entries(odds.properties));
+			// mTrace('tables', "props is", props);
+			assertDefined(props);
+			const display = props.get('display') as string;
+			const mod = parseInt(props.get('mod') as string ?? "0") ?? 0;
+			table.questionOdds.push(new QuestionOdds(ident, display, mod));
+		});
+	}
+	static getFate(node: KdlNode, table: Tables) {
+		const props = new Map(Object.entries(node.properties));
+		const diceType = props.get('dice') as string;
+		// mTrace('', "num dice", diceType);
+		let entries = new Array<CheckTableEntry>;
+		node.children.forEach(odds => {
+			// mTrace('', "odds", odds);
+			const text = odds.values[0] ?? "";
+			const props = new Map(Object.entries(odds.properties));
+			assertDefined(props);
+			// const interpretation = props.interpretation as string;
+			// const min = parseInt(props.min as string) ?? 0;
+			const weight = parseInt(props.get('weight') as string ?? "1") ?? 1;
+			// mTrace('', "fate", text, weight);
+			entries.push(new CheckTableEntry(weight, text, Interpretation.None));
+		});
+		table.fateCheckAnswers.fix(entries, diceType);
+	}
+	static getEventFocus(node: KdlNode, table: Tables) {
+		const props = new Map(Object.entries(node.properties));
+		const diceType = props.get('dice') as string;
+		let entries = new Array<CheckTableEntry>;
+		node.children.forEach(chance => {
+			// mTrace('', "chance", chance);
+			const text = chance.values[0] ?? "";
+			const props = new Map(Object.entries(chance.properties));
+			assertDefined(props);
+			// const text = props.text as string;
+			const interpretation = props.get('interpretation') as Interpretation;
+			// const min = parseInt(props.min as string) ?? 0;
+			entries.push(new CheckTableEntry(parseInt(props.get('weight') as string ?? "1") ?? 1, text, interpretation));
+		});
+		table.eventFocus.fix(entries, diceType);
+	}
+	static getObjects(node: KdlNode, table: Tables) {
+		node.children.forEach(kind => {
+			// mTrace('', "object kind", kind);
+			const ident = kind.values[0] ?? "";
+			const props = new Map(Object.entries(kind.properties));
+			assertDefined(props);
+			// const text = odds.text as string;
+			const display = props.get('display') as string;
+			const description = props.get('description') as string;
+			const progress = props.get('progress') as boolean;
+			// mTrace('', "object kind has", kind, description, display);
+			table.objectKinds.set(ident, new MythicObjectMeta(ThingFamily.ThingObject, kind.name, description, display, "", false, progress));
+		});
+	}
+	static getSimples(node: KdlNode, table: Tables) {
+		node.children.forEach(itemNode => {
+			const ident: string = itemNode.values[0] ?? "";
+			const props = new Map(Object.entries(itemNode.properties));
+			assertDefined(props);
+			const display = props.get('display') as string;
+			const description = props.get('description') as string;
+			const progress = false;
+			table.simples.set(ident, new MythicObjectMeta(ThingFamily.SimpleText, ident, description, display, "", false, progress));
+		});
+	}
+	static getOracles(node: KdlNode, table: Tables) {
+		node.children.forEach(tableNode => {
+			const ident = tableNode.values[0] ?? "";
+			const props = new Map(Object.entries(tableNode.properties));
+			assertDefined(props);
+			const diceType = props.get('dice') as string;
+			const description = props.get('description') as string;
+			let alt = props.get('alt') as string;
+			let noAlt = props.get('noAlt') as boolean;
+			let display = props.get('display') as string ?? ident;
+			let entries = new Array<CheckTableEntry>;
+			// let items = new Array<string>;
+			tableNode.children.forEach(itemNode => {
+				const itemIdent = itemNode.values[0] ?? "";
+				const itemProps = new Map(Object.entries(tableNode.properties));
+				const itemWeight = parseInt(itemProps.get('weight') as string ?? "1") ?? 1;
+				const interpretation = itemProps.get('interpretation') as Interpretation ?? Interpretation.None;
+				let entry = new CheckTableEntry(itemWeight, itemIdent, interpretation);
+				entries.push(entry);
+			});
+			const progress = false;
+			const meta = new MythicObjectMeta(ThingFamily.OracleResponse, ident, description, display, alt, noAlt, progress);
+			let checkTable = new CheckTable;
+			checkTable.fix(entries, diceType);
+			table.oracles.set(ident, new Oracle(meta, checkTable, checkTable.diceMax));
+		});
+	}
+	static async loadFromFile(file: string, table: Tables, vault: Vault) {
+		const kdl = await KdlTables.getKdl(file, table, vault);
+		assertDefined(kdl);
+		// const path = vault.getFileByPath(file);
+		// if (path == null) {
+		// 	console.warn("bad path for KDL", file, "resolved as", path);
+		// 	return;
+		// }
+		// const source = await vault.cachedRead(path);
+		// const kdl = parse(source);
+		// mTrace('kdl', "KDL parse result", kdl);
+		// if (kdl.errors.length) {
+		// 	for (const e of kdl.errors) console.warn("kdl error", e);
+		// 	if (table.result == "") {
+		// 		const errTxt = kdl.errors.map(ex => `${ex} `).join("\n");
+		// 		table.result = `in parsing KDL: ${errTxt}`;
+		// 	}
+		// 	console.error("bad KDL", table.result);
+		// 	return table;
+		// }
 		let nodes: Array<KdlNode> = plainToInstance(Array<KdlNode>, kdl.output);
-		// console.log("tables as read from KDL", nodes);
-		let table = new Tables;
+		// mTrace('', "tables as read from KDL", nodes);
 		nodes.forEach((node: KdlNode) => {
-			// // console.log("node is", node);
+			// mTrace('kdl', "node is", node);
 			switch (node.name) {
 				case 'questions':
-					node.children.forEach(odds => {
-						// // console.log("odds", odds);
-						const ident = odds.values[0] ?? "";
-						const props = odds.properties;
-						const display = props.get('display') as string;
-						const mod = parseInt(props.get('mod') as string ?? "0") ?? 0;
-						table.questionOdds.push(new QuestionOdds(display, mod)); // TODO ident
-					});
+					KdlTables.getQuestions(node.children, table);
+					// node.children.forEach(odds => {
+					// 	// mTrace('', "odds", odds);
+					// 	const ident = odds.values[0] ?? "";
+					// 	const props = new Map(Object.entries(odds.properties));
+					// 	// mTrace('tables', "props is", props);
+					// 	assertDefined(props);
+					// 	const display = props.get('display') as string;
+					// 	const mod = parseInt(props.get('mod') as string ?? "0") ?? 0;
+					// 	table.questionOdds.push(new QuestionOdds(ident, display, mod));
+					// });
 					break;
 				case 'fate': {
-					const props = node.properties;
-					const numDice = parseInt(props.get('dice') as string ?? "1") ?? 1;
-					// // console.log("num dice", numDice);
-					let entries = new Array<CheckTableEntry>;
-					node.children.forEach(odds => {
-						// // console.log("odds", odds);
-						const text = odds.values[0] ?? "";
-						const props = odds.properties;
-						// const interpretation = props.interpretation as string;
-						// const min = parseInt(props.min as string) ?? 0;
-						const weight = parseInt(props.get('weight') as string ?? "1") ?? 1;
-						// // console.log("fate", text, weight);
-						entries.push(new CheckTableEntry(weight, text));
-					});
-					table.fateCheckAnswers.fix(entries, numDice);
+					// 	const props = new Map(Object.entries(node.properties));
+					// 	const diceType = props.get('dice') as string;
+					// 	// mTrace('', "num dice", diceType);
+					// 	let entries = new Array<CheckTableEntry>;
+					// 	node.children.forEach(odds => {
+					// 		// mTrace('', "odds", odds);
+					// 		const text = odds.values[0] ?? "";
+					// 		const props = new Map(Object.entries(odds.properties));
+					// 		assertDefined(props);
+					// 		// const interpretation = props.interpretation as string;
+					// 		// const min = parseInt(props.min as string) ?? 0;
+					// 		const weight = parseInt(props.get('weight') as string ?? "1") ?? 1;
+					// 		// mTrace('', "fate", text, weight);
+					// 		entries.push(new CheckTableEntry(weight, text));
+					// 	});
+					// 	table.fateCheckAnswers.fix(entries, diceType);
+					KdlTables.getFate(node, table);
 				}
 					break;
-				case 'chances': {
-					const props = node.properties;
-					const numDice = parseInt(props.get('dice') as string ?? "1") ?? 1;
-					let entries = new Array<CheckTableEntry>;
-					node.children.forEach(chance => {
-						// // console.log("chance", chance);
-						const text = chance.values[0] ?? "";
-						const props = chance.properties;
-						// const text = props.text as string;
-						const interpretation = props.get('interpretation') as Interpretation;
-						// const min = parseInt(props.min as string) ?? 0;
-						entries.push(new CheckTableEntry(parseInt(props.get('weight') as string ?? "1") ?? 1, text));
-					});
-					table.chances.fix(entries, numDice);
+				case 'eventFocus': {
+					KdlTables.getEventFocus(node, table);
+					// const props = new Map(Object.entries(node.properties));
+					// const diceType = props.get('dice') as string;
+					// let entries = new Array<CheckTableEntry>;
+					// node.children.forEach(chance => {
+					// 	// mTrace('', "chance", chance);
+					// 	const text = chance.values[0] ?? "";
+					// 	const props = new Map(Object.entries(chance.properties));
+					// 	assertDefined(props);
+					// 	// const text = props.text as string;
+					// 	const interpretation = props.get('interpretation') as Interpretation;
+					// 	// const min = parseInt(props.min as string) ?? 0;
+					// 	entries.push(new CheckTableEntry(parseInt(props.get('weight') as string ?? "1") ?? 1, text));
+					// });
+					// table.eventFocus.fix(entries, diceType);
 				}
 					break;
 				case 'objects':
-					node.children.forEach(kind => { // TODO FIXME this is wrong
-						// // console.log("object kind", kind);
-						const ident = kind.values[0] ?? "";
-						const props = kind.properties;
-						// const text = odds.text as string;
-						const display = props.get('display') as string;
-						const description = props.get('description') as string;
-						// console.log("object kind has", kind, description, display);
-						table.objectKinds.set(ident, new MythicObjectMeta(ThingFamily.Object, kind.name, description, display));
-					});
-					break;
-				case 'randoms': {
-					node.children.forEach(tableNode => {
-						const ident = tableNode.values[0] ?? "";
-						const props = tableNode.properties;
-						const numDice = parseInt(props.get('dice') as string ?? "1") ?? 1;
-						const display = props.get('display') as string;
-						const description = props.get('description') as string;
-						let entries = new Array<CheckTableEntry>;
-						tableNode.children.forEach(itemNode => {
-							const itemIdent = itemNode.values[0] ?? "";
-							const itemProps = tableNode.properties;
-							const itemWeight = parseInt(itemProps.get('weight') as string ?? "1") ?? 1;
-							let entry = new CheckTableEntry(itemWeight, itemIdent);
-							entries.push(entry);
-						});
-						const meta = new MythicObjectMeta(ThingFamily.Random, ident, description, display);
-						let checkTable = new CheckTable;
-						checkTable.fix(entries, numDice);
-						table.randoms.set(ident, new Random(meta, checkTable, checkTable.diceMax));
-					});
-				}
+					KdlTables.getObjects(node, table);
+					// node.children.forEach(kind => {
+					// 	// mTrace('', "object kind", kind);
+					// 	const ident = kind.values[0] ?? "";
+					// 	const props = new Map(Object.entries(kind.properties));
+					// 	assertDefined(props);
+					// 	// const text = odds.text as string;
+					// 	const display = props.get('display') as string;
+					// 	const description = props.get('description') as string;
+					// 	const progress = props.get('progress') as boolean;
+					// 	// mTrace('', "object kind has", kind, description, display);
+					// 	table.objectKinds.set(ident, new MythicObjectMeta(ThingFamily.ThingObject, kind.name, description, display, "", false, progress));
+					// });
 					break;
 				case 'simples':
-					node.children.forEach(itemNode => {
-						const ident: string = itemNode.values[0] ?? "";
-						const props = itemNode.properties;
-						const display = props.get('display') as string;
-						const description = props.get('description') as string;
-						table.simples.set(ident, new MythicObjectMeta(ThingFamily.Simple, ident, description, display));
-					});
+					KdlTables.getSimples(node, table);
+					// node.children.forEach(itemNode => {
+					// 	const ident: string = itemNode.values[0] ?? "";
+					// 	const props = new Map(Object.entries(itemNode.properties));
+					// 	assertDefined(props);
+					// 	const display = props.get('display') as string;
+					// 	const description = props.get('description') as string;
+					// 	const progress = false;
+					// 	table.simples.set(ident, new MythicObjectMeta(ThingFamily.SimpleText, ident, description, display, "", false, progress));
+					// });
 					break;
-				case 'tables':
-					node.children.forEach(list => {
-						const ident = list.values[0] ?? "";
-						// // console.log("list", ident, list);
-						let items = new Array<string>;
-						list.children.forEach(item => {
-							const text = item.values[0] ?? "";
-							// // console.log("item", item, ident);
-							items.push(text);
-
-						});
-						table.meaning.set(ident as MeaningKind, items);
-					});
+				case 'oracles': {
+					KdlTables.getOracles(node, table);
+					// 	node.children.forEach(tableNode => {
+					// 		const ident = tableNode.values[0] ?? "";
+					// 		const props = new Map(Object.entries(tableNode.properties));
+					// 		assertDefined(props);
+					// 		const diceType = props.get('dice') as string;
+					// 		const description = props.get('description') as string;
+					// 		let alt = props.get('alt') as string;
+					// 		let noAlt = props.get('noAlt') as boolean;
+					// 		let display = props.get('display') as string ?? ident;
+					// 		let entries = new Array<CheckTableEntry>;
+					// 		// let items = new Array<string>;
+					// 		tableNode.children.forEach(itemNode => {
+					// 			const itemIdent = itemNode.values[0] ?? "";
+					// 			const itemProps = new Map(Object.entries(tableNode.properties));
+					// 			const itemWeight = parseInt(itemProps.get('weight') as string ?? "1") ?? 1;
+					// 			const interpretation = itemProps.get('interpretation') as Interpretation ?? Interpretation.None;
+					// 			let entry = new CheckTableEntry(itemWeight, itemIdent, interpretation);
+					// 			entries.push(entry);
+					// 		});
+					// 		const progress = false;
+					// 		const meta = new MythicObjectMeta(ThingFamily.OracleResponse, ident, description, display, alt, noAlt, progress);
+					// 		let checkTable = new CheckTable;
+					// 		checkTable.fix(entries, diceType);
+					// 		table.oracles.set(ident, new Oracle(meta, checkTable, checkTable.diceMax));
+					// 	});
+				}
 					break;
 				default:
-				// console.log("need to implement", node.name);
+					// mTrace('', "need to implement", node.name);
+					console.error("unknown node type", node.name);
+					if (table.result == "") table.result = `invalid table entry '${node.name}'.`;
 			}
 		});
-		// console.log("tables", table);
-		return table;
 	}
 }
 class KdlNode {

@@ -5,7 +5,7 @@ This assumes that you have a copy of Tana Pigeon's *Mythic Game Master Emulator*
 
 ### Setup
 - install the Obsidian note-taking application. See https://obsidian.md/
-- create a new vault for this, so you do not corrupt your other notes.
+- create a new vault for this plugin, so you do not corrupt your other notes when the plugin malfunctions.
 - For the alpha or beta versions, pull down a copy of the latest plugin release from GitHub and move it into the `.obsidian/plugins` directory in your vault.
 - copy the `tables.kdl` file into a `tables.md` file in your vault. (This step will be automated in a later release).
 - go to Community plugins and enable the Mythic GME plugin.
@@ -94,3 +94,12 @@ The options are stored in KDL ("cuddle") format. Hopefully, the the sample optio
 Obsidian has features for editing the appearance of your data. See the Obsidian CSS documentation for this.
 
 The *CSS classes* all begin with "mythic-". *To do: document the specifics.*
+
+## Status
+This plugin is still being tested.
+
+Also, some features are difficult for users to use. 
+
+If you discover any errors, raise an issue with the GitHub repository. If you can fix the issue yourself, raise a pull request.
+
+Tip: in Obsidian,  Control-shift-i will bring up the Console, which may provide useful debugging data.

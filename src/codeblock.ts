@@ -1,5 +1,5 @@
 import { Editor } from 'obsidian';
-// MarkDown code block
+/** MarkDown code block */
 export class CodeBlock {
 	start: number = 0;
 	end: number = 0;
@@ -20,7 +20,7 @@ export class CodeBlock {
 	static nonBlock(): CodeBlock {
 		return new CodeBlock(0, 0, '', false);
 	}
-	// find whether the cursor is in a code block and if so find the extent
+	/** find whether the cursor is in a code block and if so find the extent */
 	static get(editor: Editor): CodeBlock {
 		const line_count = editor.lineCount();
 		let line_number = editor.getCursor().line;
@@ -57,7 +57,7 @@ export class CodeBlock {
 		let tag = line.substring(3);
 		return new CodeBlock(first_line, last_line, tag, true);
 	}
-	// find the contents of the CodeBlock
+	/** find the contents of the CodeBlock */
 	contents(editor: Editor): string {
 		if (!this.is_block) return '';
 		return editor.getRange(
