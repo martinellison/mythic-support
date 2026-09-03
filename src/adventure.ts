@@ -5,7 +5,7 @@ import MythicSupportPlugin, { assertDefined, mTrace } from './main.js';
 import { Metadata } from './metadata.js';
 import { Tables } from './tables2.js';
 
-/** adventure text should come after a adventure block */
+/** implements an Adventure block. Adventure text should come after a adventure block */
 export class Adventure {
 	static readonly TAG = "mythic-adventure";
 	description: string;
@@ -38,7 +38,8 @@ export class Adventure {
 			tables.objectKinds.forEach((kind, ident) => {
 				let kindElt = divElt.createDiv();
 				kindElt.createEl('b', { text: `${kind.displayName}: ` });
-				const objects = metadata.blockTable.objects(ident).map(ch => (ch.marker !== undefined && ch.marker.trim() != "" ? ` [${ch.marker}] ` : "") + ch.name);
+				// const objects = metadata.blockTable.objects(ident).map(ch => (ch.marker !== undefined && ch.marker.trim() != "" ? ` [${ch.marker}] ` : "") + ch.name);
+				const objects = metadata.blockTable.objectNames(ident);
 				mTrace('adventure', "for adventure", ident, kind, objects);
 				kindElt.createSpan({ text: ` ${objects.join(", ")}` });
 				mTrace('adventure', (`${ident}: found ${objects.length}`));

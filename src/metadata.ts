@@ -79,6 +79,10 @@ export class BlockTable {
 		mTrace('', kind, "objects are", objects);
 		return objects;
 	}
+	/** names of all objects of a kind */
+	objectNames(kind: string): Array<string> {
+		return this.objects(kind).map(ch => (ch.marker !== undefined && ch.marker.trim() != "" ? ` [${ch.marker}] ` : "") + ch.name);
+	}
 }
 
 /** all the metadata for the adventure. It saves some settings in case the settings disappear. */

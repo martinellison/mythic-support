@@ -1,11 +1,12 @@
 import { Type, plainToInstance, instanceToPlain } from 'class-transformer';
-import { Modal, App, Setting, MarkdownPostProcessorContext } from 'obsidian';
+import { Modal, App, Setting, MarkdownPostProcessorContext, } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
 import { Tables } from './tables2.js';
 import { EventFocus, } from './randomevent.js';
 import MythicSupportPlugin, { mTrace } from './main.js';
 import { Metadata } from './metadata.js';
 import { Meaning } from './meaning.js';
+import { ChaosProvider, FateData, FateDataModal } from './fatedata.js';
 const NONIDENT = /[^a-zA-Z0-9]+/g;
 export class QuestionOdds {
 	display: string;
@@ -20,23 +21,27 @@ export class QuestionOdds {
 		this.fate_check_modifier = mod;
 	}
 }
-// question text should come after a question block
-export class Question {
+/** implements an fate question block. Question text should come after a question block. */
+export class Question implements ChaosProvider {
+	chaosValue(): number { return this.chaosFactor; }
 	static readonly TAG = "mythic-question";
-	description: string;
-	odds: string;
-	chaosFactor: number;
-	dice: Array<number>;
+	@Type(() => FateData)
+	fateData: FateData = new FateData(this);
+	// description: string;
+	// odds: string;
+	chaosFactor: number = 5;
+	// dice: Array<number>;
 	meaningKind: string = "action1";
 	@Type(() => EventFocus)
 	focus?: EventFocus = new EventFocus;
 	@Type(() => Meaning)
 	meaning?: Meaning = new Meaning;
 	constructor(description: string) {
-		this.description = description;
-		this.odds = 'certain';
-		this.chaosFactor = 5;
-		this.dice = [0, 0];
+		this.fateData = new FateData(this);
+		// this.description = description;
+		// this.odds = 'certain';
+		// this.chaosFactor = 5;
+		// this.dice = [0, 0];
 		this.focus = undefined;
 		this.meaning = undefined;
 	}
@@ -45,28 +50,20 @@ export class Question {
 		// @ts-ignore
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
 		let question: Question = plainToInstance(Question, JSON.parse(source));
+		if (question.fateData !== undefined)
+			question.fateData.chaosProvider = question;
 		return question;
 	}
 	/** convert to a JSON string */
 	toJson(): string {
 		return JSON.stringify(instanceToPlain(this));
 	}
-	chaosMod(): number {
-		return this.chaosFactor > 7 ? this.chaosFactor - 4 : this.chaosFactor < 3 ? this.chaosFactor - 6 : this.chaosFactor - 5;
-	}
-	isRandom(): boolean { return ((this.dice[0] ?? 0) == (this.dice[1] ?? 0) && (this.dice[0] ?? 0) <= this.chaosFactor); }
 	/** create HTML for display */
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext, tables: Tables) {
 		const question: Question = Question.fromJson(source);
 		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-question' });
-		divElt.createSpan({ text: `(question) ${question.description} ${question.dice[0]}/${question.dice[1]}` });
-		divElt.createSpan({ text: ` odds: ${question.odds}` });
-		let mod: number = tables.getQuestionOdds(question.odds).fate_check_modifier;
-		divElt.createEl('i', { text: ` (${question.dice[0] ?? 0} + ${question.dice[1] ?? 0} + ${mod} + ${question.chaosMod()})` });
-		let roll_total = (question.dice[0] ?? 0) + (question.dice[1] ?? 0) + mod + question.chaosMod(); // TODO standardise
-		let answer = tables.fateCheckAnswers.resolve(roll_total);
-		divElt.createSpan({ text: ` = ${roll_total}` });
-		divElt.createEl('b', { text: ` (${answer.text})` });
+		question.fateData.toHtml(divElt, tables);
+
 		if (question.focus !== undefined) {
 			el.createDiv({ text: question.focus.toText(tables), cls: 'mythic-random' });
 		}
@@ -75,8 +72,11 @@ export class Question {
 		}
 	}
 	throwDice(tables: Tables, metadata: Metadata): void {
-		for (let d = 0; d < 2; d++) this.dice[d] = Question.dice(10);// dice max is for a Fate Check
-		if (this.dice[0] == this.dice[1] && (this.dice[0] ?? 5) <= this.chaosFactor) {
+		// for (let d = 0; d < 2; d++) this.dice[d] = mythicDice(10);// dice max is for a Fate Check
+		this.fateData.throwDice();
+		// if (this.data.dice[0] == this.data.dice[1] && (this.data.dice[0] ?? 5) <= this.
+		// chaosFactor) {
+		if (this.fateData.isRandom()) {
 			this.focus = new EventFocus;
 			this.meaning = new Meaning;
 			this.meaning.meaningKind = this.meaningKind;
@@ -95,37 +95,17 @@ export class Question {
 			this.meaning.explain(tables);
 		}
 	}
-	/** This returns a random number 1 to `n` */
-	static dice(n: number): number { return Math.floor(Math.random() * n) + 1; }
 }
 export class QuestionModal extends Modal {
 	question: Question;
+	// questionDataModal: QuestionDataModal;
 	constructor(app: App, question: Question, block: CodeBlock, tables: Tables, plugin: MythicSupportPlugin) {
 		super(app);
 		this.question = question;
 		this.setTitle('Question');
-		new Setting(this.contentEl)
-			.setName('Description')
-			.addTextArea((text) => {
-				text.setValue(this.question.description);
-				text.onChange((value) => {
-					this.question.description = value;
-				});
-			});
-
-		new Setting(this.contentEl).setName('Odds').addDropdown((dropDown) => {
-			// mTrace('', "loading odds to dropdown", tables);
-			for (let quOdds of tables.questionOdds) dropDown.addOption(quOdds.ident, quOdds.display);
-			dropDown.setValue(this.question.odds);
-			dropDown.onChange((value) => {
-				this.question.odds = value;
-			});
-		});
-		new Setting(this.contentEl).setName('Chaos').addSlider((slider) => {
-			slider.setLimits(1, 9, 1).setInstant(true).setValue(this.question.chaosFactor).onChange((value) => {
-				this.question.chaosFactor = value;
-			});
-		});
+		let questionDataModal = new FateDataModal(this.contentEl, tables, () => { });
+		questionDataModal.setVisibility(true, "Q");
+		questionDataModal.setData(question.fateData, tables);
 		new Setting(this.contentEl).setName('Meaning').addDropdown((dropDown) => {
 			for (let meanTab of tables.oracles) {
 				const ident = meanTab[0];
@@ -149,6 +129,7 @@ export class QuestionModal extends Modal {
 					this.close();
 				}));
 	}
+
 	makeSaveButton(app: App, question: Question, block: CodeBlock, kind: QuestionButtonKind, tables: Tables, plugin: MythicSupportPlugin) {
 		if (plugin === undefined) console.error("no plugin");
 		else if (plugin.metadata === undefined) console.error("no metadata");

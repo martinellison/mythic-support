@@ -2,27 +2,32 @@ import { plainToInstance, instanceToPlain } from 'class-transformer';
 import { Modal, App, Setting, MarkdownPostProcessorContext } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
 import { MythicObjectMeta, Tables, ThingFamily } from './tables2.js';
-import { assertDefined, mTrace } from './main.js';
+import MythicSupportPlugin, { assertDefined, mTrace } from './main.js';
+import { Metadata } from './metadata.js';
 
-/** object text should come after a object block */
+/**  MythicObject implements an Object block.  Object text should come after a object block */
 export class MythicObject {
 	static readonly TAG = "mythic-object";
 	kind: string = "";
 	name: string = "";
 	marker: string = ""; // for marking special objects
 	description: string;
-	result: number;
+	diceThrow: number = 0;
 	removed?: boolean;
 	maxProgress: number = 0; // 0 means not a progress thread
 	progress: number = 0;
 	needsFlashpoint: boolean = false;
-	constructor(kind: string, name: string, marker: string, description: string) {
+	selection: boolean = false;
+	selected: string = "";
+	constructor(kind: string, name: string, marker: string, description: string, selection: boolean) {
 		this.kind = kind;
 		this.name = name;
 		this.marker = marker;
 		this.description = description;
-		this.result = 0;
+		this.diceThrow = 0;
 		this.removed = false;
+		this.selection = selection;
+		this.selected = "";
 	}
 	/** convert from a JSON string */
 	static fromJson(source: string): MythicObject {
@@ -59,26 +64,34 @@ export class MythicObject {
 			if (oracle === undefined) {
 				divElt.createDiv({ text: `oracle ${object.kind} not found`, cls: 'mythic-error' });
 			} else {
-				const diceThrow = Math.trunc(object.result * oracle.entries.totWeights); // TODO standardise
-				const entry = oracle.entries.resolve(diceThrow);
-				divElt.createEl('b', { text: " " + entry.text }); // ?? interpretation
+				const entry = oracle.entries.resolve(object.diceThrow);
+				divElt.createEl('b', { text: ` (${meta.displayName} oracle) ${entry.text}` });
 			}
+		}
+		if (object.selection) {
+			divElt.createSpan({ text: " Selected: " });
+			divElt.createEl('b', { text: ` ${object.selected}` });
 		}
 	}
 	newFlashpoint(): boolean {
 		const progress = this.progress;
 		return progress % 5 > 0 && (progress % 5 == 0 || progress % 5 == 1);
 	}
+	selectObject(metadata: Metadata, ident: string) {
+		const objects = metadata.blockTable.objectNames(ident);
+		const object = objects[Math.floor(objects.length * Math.random())];
+		this.selected = object ?? "??";
+	}
 }
 export class MythicObjectModal extends Modal {
 	object: MythicObject;
-	constructor(app: App, object: MythicObject, block: CodeBlock, tables: Tables, kind: MythicObjectMeta) {
+	constructor(app: App, plugin: MythicSupportPlugin, object: MythicObject, block: CodeBlock, tables: Tables, kind: MythicObjectMeta) {
 		super(app);
-		mTrace('', "create object modal", kind);
+		mTrace('object', "create object modal", kind, "block:", block, "object:", object);
 		assertDefined(kind);
 		this.object = object;
 		this.setTitle(kind.displayName);
-		if (kind.family == ThingFamily.ThingObject)
+		if (kind.family == ThingFamily.ThingObject && !object.selection)
 			new Setting(this.contentEl)
 				.setName('Name')
 				.addTextArea((text) => {
@@ -87,14 +100,15 @@ export class MythicObjectModal extends Modal {
 						this.object.name = value;
 					});
 				});
-		new Setting(this.contentEl)
-			.setName('Marker')
-			.addText((text) => {
-				text.setValue(this.object.marker);
-				text.onChange((value) => {
-					this.object.marker = value;
+		if (!object.selection)
+			new Setting(this.contentEl)
+				.setName('Marker')
+				.addText((text) => {
+					text.setValue(this.object.marker);
+					text.onChange((value) => {
+						this.object.marker = value;
+					});
 				});
-			});
 		new Setting(this.contentEl)
 			.setName('Description')
 			.addTextArea((text) => {
@@ -113,6 +127,7 @@ export class MythicObjectModal extends Modal {
 						this.object.maxProgress = p - (p % 5);
 				});
 			});
+
 			new Setting(this.contentEl).setName('Progress').setDesc("Progress so far on a progress thread").addText((text) => {
 				text.setValue(this.object.progress.toString());
 				text.onChange((value) => {
@@ -144,15 +159,18 @@ export class MythicObjectModal extends Modal {
 						});
 					});
 				if (this.object.maxProgress > 0) {
-					this.saveButton(buttonSetting, app, object, block, tables, kind, false, true);
+					this.saveButton(buttonSetting, app, plugin, object, block, tables, kind, false, true, false);
 				}
 				break;
 			case ThingFamily.OracleResponse:
-				this.saveButton(buttonSetting, app, object, block, tables, kind, true, false);
+				this.saveButton(buttonSetting, app, plugin, object, block, tables, kind, true, false, false);
+				break;
+			case ThingFamily.ThingChoice:
+				// TODO ThingChoice?
 				break;
 			default:
 		}
-		this.saveButton(buttonSetting, app, object, block, tables, kind, false, false);
+		this.saveButton(buttonSetting, app, plugin, object, block, tables, kind, false, false, object.selection);
 		buttonSetting
 			.addButton((btn) => btn
 				.setButtonText('Cancel')
@@ -161,7 +179,7 @@ export class MythicObjectModal extends Modal {
 					this.close();
 				}));
 	}
-	saveButton(setting: Setting, app: App, object: MythicObject, block: CodeBlock, tables: Tables, kind: MythicObjectMeta, throwDice: boolean, bump: boolean) {
+	saveButton(setting: Setting, app: App, plugin: MythicSupportPlugin, object: MythicObject, block: CodeBlock, tables: Tables, kind: MythicObjectMeta, throwDice: boolean, bump: boolean, select: boolean) {
 		setting
 			.addButton((btn) => btn
 				.setButtonText(throwDice ? 'Throw Dice and Update' : bump ? 'Mark Progress and Update' : 'Update')
@@ -172,10 +190,16 @@ export class MythicObjectModal extends Modal {
 						switch (kind.family) {
 							case ThingFamily.ThingObject:
 							case ThingFamily.SimpleText:
-								// random does not make sense here TODO check
+								// random does not make sense here
 								break;
-							case ThingFamily.OracleResponse:
-								object.result = Math.random();
+							case ThingFamily.OracleResponse: {
+								const oracle = tables.oracles.get(object.kind);
+								if (oracle !== undefined)
+									object.diceThrow = oracle.entries.throwDiceStandardised();
+							}
+								break;
+							case ThingFamily.ThingChoice:
+								// TODO ThingChoice?
 								break;
 						}
 					}
@@ -183,6 +207,10 @@ export class MythicObjectModal extends Modal {
 						object.progress += 2;
 						object.needsFlashpoint = object.newFlashpoint();
 					}
+					if (select) {
+						object.selectObject(plugin.metadata, object.kind);
+					}
+					mTrace('object', "saving", object);
 					const json = object.toJson();
 					let editor = app.workspace.activeEditor?.editor;
 					if (editor !== undefined)

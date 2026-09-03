@@ -6,50 +6,55 @@ import { CheckTableEntry, Interpretation, Tables } from "./tables2.js";
 
 /** the focus of a random event */
 export class EventFocus {
-	event_focus: number = 0;
+	event_focus_index: number = 0;
 	object: string = "";
 	objectNumber: number = 0; // not stable as the lists are not stable
 	constructor() { }
 	/** this does random things for an event focus. */
 	throwDice(tables: Tables) {
 		assertDefined(tables);
-		const dice = new DiceRandom(tables.eventFocus.diceType ?? "2d10");
-		this.event_focus = dice.throw()[0]; // ?? TODO standardise
-		this.objectNumber = Math.floor(Math.random() * 100.0) / 100.0; // ?? TODO standardise
+		// const dice = new DiceRandom(tables.eventFocus.diceType ?? "2d10");
+		// this.event_focus_index = dice.throw()[0]; 
+		this.event_focus_index = tables.eventFocus.throwDiceStandardised();
+		this.objectNumber = Math.floor(Math.random() * 100.0) / 100.0;
 	}
 	/** this returns the description of the random event focus. */
 	focusDescr(tables: Tables): CheckTableEntry {
-		const entry = tables.eventFocus.resolve(this.event_focus); // TODO standardise input?
+		const entry = tables.eventFocus.resolve(this.event_focus_index);
 		mTrace('randomevent', "focus resolved to", entry);
 		return entry;
 	}
-	/** set the object */
+	/** set the object (or no object, for some interpretations) */
 	defineSelectedObject(metadata: Metadata, interpretation: string) {
 		const objects = metadata.blockTable.objects(interpretation);
-		if (objects.length == 0) console.warn("no objects to select from, for", interpretation);
-		this.objectNumber = Math.floor(objects.length * this.objectNumber);
-		const obj = objects[this.objectNumber];
-		this.object = obj === undefined ? "(unknown)" : obj.description ?? obj?.name;
-		mTrace('randomevent', `random object ${this.objectNumber} is ${this.object}`);
+		if (objects.length == 0) {
+			mTrace('event', "no objects to select from, for", interpretation);
+			this.objectNumber = 0;
+			this.object = '';
+		} else {
+			this.objectNumber = Math.floor(objects.length * this.objectNumber);
+			const obj = objects[this.objectNumber];
+			this.object = obj === undefined ? "" : obj.description ?? obj?.name;
+			mTrace('randomevent', `random object ${this.objectNumber} is ${this.object}`);
+		}
 	}
 	/** This returns a string describing the event focus. ~~This consults two separate tables for some MeaningKinds, but only one for the rest.~~ */
 	toText(tables: Tables): string {
 		mTrace('', "random event: explaining ");
 		let parts = new Array<string>;
 		const focus_descr = this.focusDescr(tables);
-		let focus_explain = "";
 		const meta = tables.objectKinds.get(focus_descr.interpretation);
 		if (meta !== undefined) {
-			const kind = meta.kind; //??
+			// const kind = meta.kind;
 			parts.push(meta.displayName);
 		}
-		parts.push(this.object);
+		if (this.object != "")
+			parts.push(this.object);
 		switch (focus_descr.interpretation) {
 			case Interpretation.None: break;
-			case Interpretation.NewNPC: focus_explain = "Create a new NPC"; break;
-			// default: focus_explain = `unknown interpretation: ${focus_descr.interpretation}`;
+			case Interpretation.NewNPC: parts.push("Create a new NPC"); break;
 		}
-		parts.push(focus_explain);
+		parts.push(focus_descr.text);
 		return parts.join(' ');
 	}
 } 

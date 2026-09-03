@@ -3,15 +3,16 @@ import { Modal, App, Setting, MarkdownPostProcessorContext, DisplayValueComponen
 import { CodeBlock } from './codeblock.js';
 import { Tables } from './tables2.js';
 import { EventFocus, } from './randomevent.js';
-import MythicSupportPlugin, { assertDefined, mTrace, shorten } from './main.js';
-import { Question } from './question.js';
+import MythicSupportPlugin, { assertDefined, mTrace, mythicDice, shorten } from './main.js';
+import { Question, QuestionModal } from './question.js';
+import { FateData, FateDataModal as FateDataModal, ChaosProvider } from './fatedata.js';
 import { Meaning, MeaningModal } from './meaning.js';
 
 export const enum AlterationKind {
 	Expected = 'expected',
 	Next = 'next',
 	Tweak = 'tweak',
-	Fate = 'fate',
+	FateQuestion = 'fatequestion',
 	Meaning = 'meaning',
 	Adjustment = 'adjustment',
 }
@@ -24,15 +25,16 @@ export const enum SceneType {
 export const enum SceneAdjustment {
 	ReduceRemoveActivity = 'reduce/remove activity',
 	IncreaseActivity = 'increase activity',
-	RemoveMythicObject = 'remove object',
-	AddMythicObject = 'add object',
+	RemoveMythicCharacter = 'remove character',
+	AddMythicCharacter = 'add character',
 }
 /** checking status of a scene. Keep the order. */
 enum SceneStatus {
-	NeedsExpected, NeedsRandom, NeedsAlterationKind, NeedsMeaning, NeedsAlteration, OK,
+	NeedsExpected, NeedsRandom, NeedsAlterationKind, NeedsFate, NeedsMeaning, NeedsAlteration, OK,
 };
-/** scene text should come after a scene block */
-export class Scene {
+/**  implements an Scene block. Scene text should come after a scene block */
+export class Scene implements ChaosProvider {
+	chaosValue(): number { return this.chaos; }
 	static readonly TAG = 'mythic-scene';
 	ident: string = "";
 	chaos: number = 5;
@@ -41,6 +43,8 @@ export class Scene {
 	expected: string = '';
 	alteration?: string;
 	adjustment?: Array<SceneAdjustment>;
+	@Type(() => FateData)
+	fate?: FateData;
 	@Type(() => EventFocus)
 	focus?: EventFocus;
 	@Type(() => Meaning)
@@ -59,12 +63,14 @@ export class Scene {
 	}
 	/** use the scene type */
 	useSceneType() {
+		mTrace("scene type is", this.sceneType);
 		switch (this.sceneType) {
 			case SceneType.NeedDice:
 			case SceneType.Expected:
 				this.alteration = undefined;
 				this.adjustment = undefined;
 				// this.randomEvent = undefined;
+				this.fate = undefined;
 				this.focus = undefined;
 				this.meaning = undefined;
 				break;
@@ -75,6 +81,7 @@ export class Scene {
 				this.adjustment = undefined;
 				break;
 		}
+		mTrace('scene use type', this.fate === undefined ? "haven't fate" : "have fate");
 	}
 	/** set this scene to alteration */
 	setAlterationKind(kind: AlterationKind) {
@@ -82,15 +89,18 @@ export class Scene {
 			mTrace("no change, because alteration kind already set to", kind);
 			return;
 		}
+		mTrace('scene', "kind set to", kind);
+		if (kind != AlterationKind.Expected && this.kind != kind) this.alteration = "";
 		this.kind = kind;
-		if (this.kind != AlterationKind.Expected) this.alteration = "";
 		switch (this.kind) {
 			case AlterationKind.Expected:
 				break;
 			case AlterationKind.Next:
 			case AlterationKind.Tweak:
 				break;
-			case AlterationKind.Fate: break;
+			case AlterationKind.FateQuestion:
+				this.fate = new FateData(this);
+				break;
 			case AlterationKind.Adjustment:
 				this.adjustment = new Array<SceneAdjustment>;
 				break;
@@ -101,36 +111,39 @@ export class Scene {
 	}
 	/** this scene is an alteration scene, so remove any unnecessary data. */
 	useAlterationKind() {
-		// this.focus = undefined;
-		// this.meaning = undefined;
+		mTrace("scene", "kind is", this.kind);
 		switch (this.kind) {
 			case AlterationKind.Expected:
 				this.alteration = undefined;
 				this.adjustment = undefined;
+				this.fate = undefined;
 				this.meaning = undefined;
 				this.focus = undefined;
 				break;
 			case AlterationKind.Next:
 			case AlterationKind.Tweak:
 				this.adjustment = undefined;
+				this.fate = undefined;
 				this.meaning = undefined;
 				this.focus = undefined;
 				break;
-			case AlterationKind.Fate:
+			case AlterationKind.FateQuestion:
 				this.adjustment = undefined;
 				this.meaning = undefined;
 				this.focus = undefined;
+				if (this.fate === undefined)
+					this.fate = new FateData(this);
 				break;
 			case AlterationKind.Adjustment:
+				this.fate = undefined;
 				this.meaning = undefined;
 				this.focus = undefined;
 				if (this.adjustment === undefined)
 					this.adjustment = new Array<SceneAdjustment>;
 				break;
 			case AlterationKind.Meaning:
-				// case AlterationKind.Table:
-				this.alteration = undefined;
 				this.adjustment = undefined;
+				this.fate = undefined;
 				this.focus = undefined;
 				if (this.meaning === undefined)
 					this.meaning = new Meaning;
@@ -148,30 +161,32 @@ export class Scene {
 				switch (this.kind) {
 					case AlterationKind.Expected:
 						return SceneStatus.NeedsAlterationKind;
+					case AlterationKind.FateQuestion:
+						if (this.fate !== undefined && this.fate.description.trim() == "")
+							return SceneStatus.NeedsFate;
+						break;
 					case AlterationKind.Meaning:
 						if (this.meaning === undefined)
 							return SceneStatus.NeedsMeaning;
 						break;
 					default:
 				}
-				if (this.alteration === undefined || this.alteration.trim() == "")
-					return SceneStatus.NeedsAlteration;
 				break;
 			case SceneType.Interrupt:
 				if (this.kind == AlterationKind.Meaning && this.meaning == undefined)
 					return SceneStatus.NeedsMeaning;
-				if (this.alteration === undefined || this.alteration.trim() == "")
-					return SceneStatus.NeedsAlteration;
 				break;
 			case SceneType.Expected:
 				break;
 		}
+		if (this.sceneType != SceneType.Expected && (this.alteration === undefined || this.alteration.trim() == ""))
+			return SceneStatus.NeedsAlteration;
 		return SceneStatus.OK;
 	}
 	/** generate randomness. The table for the scene type test is hard coded. */
 	setRandom(tables: Tables, plugin: MythicSupportPlugin): void {
 		mTrace('scene', "Setting random");
-		const sceneTestOracle = Question.dice(10);
+		const sceneTestOracle = mythicDice(10);
 		if (sceneTestOracle > this.chaos) {
 			this.setSceneType(SceneType.Expected);
 		}
@@ -197,12 +212,16 @@ export class Scene {
 					case AlterationKind.Next:
 					case AlterationKind.Tweak:
 						break;
-					case AlterationKind.Fate:
+					case AlterationKind.FateQuestion:
+						if (this.fate === undefined)
+							this.fate = new FateData(this);
 						break;
 					case AlterationKind.Meaning:
 						if (this.meaning === undefined)
 							this.meaning = new Meaning;
 						break;
+					default:
+						console.warn("unknown kind", this.kind);
 				}
 				break;
 			case SceneType.Interrupt:
@@ -212,29 +231,34 @@ export class Scene {
 					this.meaning = new Meaning;
 				break;
 		}
+		if (this.fate !== undefined) {
+			this.fate.throwDice();
+			mTrace('scene', "fate on", this.fate);
+		}
 		if (this.focus !== undefined) {
 			this.focus.throwDice(tables);
 			let ent = this.focus.focusDescr(tables);
 			mTrace('scene', "focus on", ent.text);
 			this.focus.defineSelectedObject(plugin.metadata, ent.interpretation);
 		}
-		if (this.meaning !== undefined) {
+		if (this.meaning !== undefined) { // TODO the permitted kinds of adjustment are different for interrupts
 			const tabSiz = this.meaning.tableSizes(tables);
 			this.meaning.throwDice(tabSiz);
 			this.meaning.explain(tables);
 		}
+		mTrace('scene set random', this.fate === undefined ? "haven't fate" : "have fate");
 	}
 	/** do a scene adjustment. */
 	addSceneAdjustment() {
-		const sceneAdjustOracle = Question.dice(10); // TODO check dice count
+		const sceneAdjustOracle = mythicDice(10); // MGME p70
 		assertDefined(this.adjustment);
-		switch (sceneAdjustOracle) { // TODO fix
-			case 1: this.adjustment.push(SceneAdjustment.RemoveMythicObject); break;
-			case 2: this.adjustment.push(SceneAdjustment.AddMythicObject); break;
+		switch (sceneAdjustOracle) {
+			case 1: this.adjustment.push(SceneAdjustment.RemoveMythicCharacter); break;
+			case 2: this.adjustment.push(SceneAdjustment.AddMythicCharacter); break;
 			case 3: this.adjustment.push(SceneAdjustment.ReduceRemoveActivity); break;
 			case 4: this.adjustment.push(SceneAdjustment.IncreaseActivity); break;
-			case 5: this.adjustment.push(SceneAdjustment.RemoveMythicObject); break;
-			case 6: this.adjustment.push(SceneAdjustment.AddMythicObject); break;
+			case 5: this.adjustment.push(SceneAdjustment.RemoveMythicCharacter); break;
+			case 6: this.adjustment.push(SceneAdjustment.AddMythicCharacter); break;
 			default:
 				if (this.adjustment.length < 2)
 					this.addSceneAdjustment();
@@ -248,6 +272,9 @@ export class Scene {
 		// @ts-ignore
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
 		let scene: Scene = plainToInstance(Scene, JSON.parse(source));
+		mTrace('scene', "scene from json", scene, scene.fate === undefined ? "haven't fate" : "have fate");
+		if (scene.fate !== undefined)
+			scene.fate.chaosProvider = scene;
 		scene.useSceneType();
 		return scene;
 	}
@@ -256,9 +283,10 @@ export class Scene {
 		return JSON.stringify(instanceToPlain(this));
 	}
 	/** describe the scene in plain text */
-	toText(tables: Tables): [string, string] {
+	toText(tables: Tables): [string, string, string] {
 		let desc1 = "";
 		let descrs = new Array<string>;
+		let desc3 = "";
 		switch (this.sceneType) {
 			case SceneType.NeedDice:
 				desc1 = "(not complete)";
@@ -272,29 +300,30 @@ export class Scene {
 					case AlterationKind.Expected: descrs.push("(not complete)"); break;
 					case AlterationKind.Next: descrs.push("Next"); break;
 					case AlterationKind.Tweak: descrs.push("Tweak"); break;
-					case AlterationKind.Fate: descrs.push("Fate"); break;
+					case AlterationKind.FateQuestion: descrs.push("Fate"); break;
 					case AlterationKind.Meaning: descrs.push("Meaning: "); break;
-					case AlterationKind.Adjustment: descrs.push(`Adjustment ${this.adjustment?.join("+")}`); break;
+					case AlterationKind.Adjustment: descrs.push(`Adjustment: ${this.adjustment?.join("+")}`); break;
 				}
 				break;
 			case SceneType.Interrupt:
 				desc1 = "The scene has been interrupted and replaced.";
-				if (this.kind == AlterationKind.Meaning)
-					descrs.push("Meaning");
+				// if (this.kind == AlterationKind.Meaning)
+				// 	descrs.push("Meaning: ");
 				break;
 		}
+		// if (this.fate !== undefined) {
+		// 	descrs.push(`${this.fate.toText(tables)}`);
+		// }
 		if (this.focus !== undefined) {
 			descrs.push(`${this.focus.toText(tables)}`);
-			// if (this.focus.object.trim() != "")
-			// 	descrs.push(`for: ${this.focus.object}`);
 		}
 		if (this.meaning !== undefined) {
 			if (this.meaning.result.trim() == "")
 				console.warn("unexplained meaning", this.meaning);
-			descrs.push(`${this.meaning.result}`);
+			else desc3 = `${this.meaning.result}`;
 		}
-		mTrace('scene', desc1, descrs.join(' '));
-		return [desc1, descrs.map((s) => shorten(s)).join(' ')];
+		// mTrace('scene', desc1, descrs.join(' '));
+		return [desc1, descrs.map((s) => shorten(s)).join(' '), desc3];
 	}
 	/** create HTML for display */
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext, tables: Tables) {
@@ -302,21 +331,21 @@ export class Scene {
 		mTrace('', "rendering scene", source);
 		const scene: Scene = Scene.fromJson(source);
 		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-scene' });
-		divElt.createSpan({ text: `(scene) ${scene.ident} chaos ${scene.chaos}` });
+		divElt.createSpan({ text: `(scene) ${scene.ident} chaos ${scene.chaos} ` });
 		switch (scene.sceneType) {
 			case SceneType.Expected:
-				divElt.createSpan({ text: ` (expected)` });
+				divElt.createSpan({ text: ` (expected) ` });
 				divElt.createEl('b', { text: ` ${scene.expected} ` });
 				break;
 			case SceneType.Altered:
-				divElt.createSpan({ text: ` (altered ${scene.kind})` });
+				divElt.createSpan({ text: ` (altered ${scene.kind}) ` });
 				switch (scene.kind) {
 					case AlterationKind.Meaning:
-						if (scene.meaning !== undefined && scene.meaning instanceof Meaning) {// TODO temp hack remove
+						if (scene.meaning !== undefined) {
 							scene.meaning.explain(tables);
-							divElt.createSpan({
-								text: scene.meaning.result
-							});
+							// divElt.createSpan({
+							// 	text: scene.meaning.result
+							// });
 						} else {
 							console.error("invalid meaning", scene.meaning);
 							divElt.createEl('b', { text: " no meaning! " });
@@ -331,44 +360,53 @@ export class Scene {
 						break;
 					case AlterationKind.Next:
 					case AlterationKind.Tweak:
-					case AlterationKind.Fate:
 						divElt.createEl('i', { text: ` other alteration: ${scene.kind} ` });
+						break;
+					case AlterationKind.FateQuestion:
+						break;
 				}
 				divElt.createEl('s', { text: ` (expected) ${scene.expected} ` });
 				// divElt.createEl('i', { text: ` (altered ${scene.kind}) ` });
-				divElt.createEl('b', { text: ` ${scene.alteration} ` });
+				if (scene.alteration !== undefined)
+					divElt.createEl('b', { text: ` ${scene.alteration} ` });
 				break;
 			case SceneType.Interrupt:
-				divElt.createSpan({ text: ` (interrupt)` });
+				divElt.createSpan({ text: ` (interrupt) ` });
 				divElt.createEl('s', { text: ` (expected) ${scene.expected} ` });
-				divElt.createEl('b', { text: ` ${scene.alteration} ` });
+				if (scene.alteration !== undefined)
+					divElt.createEl('b', { text: ` ${scene.alteration} ` });
 				break;
 		}
 		if ((scene.kind != AlterationKind.Expected) && (scene.alteration == "")) {
-			divElt.createEl('b', { text: " needs alteration!" });
+			divElt.createEl('b', { text: " needs alteration! " });
 			divElt.createSpan({ text: ' edit this scene to provide the adjusted scene!' });
 		}
 
+		if (scene.fate !== undefined) {
+			scene.fate.toHtml(divElt, tables);
+		}
 		if (scene.focus !== undefined) {
-			el.createDiv({ text: scene.focus.toText(tables), cls: 'mythic-random' });
+			el.createDiv({ text: ` ${scene.focus.toText(tables)} `, cls: 'mythic-random' });
 		}
 		if (scene.meaning !== undefined) {
-			el.createDiv({ text: scene.meaning.result, cls: 'mythic-random' });
+			el.createDiv({ text: ` ${scene.meaning.result} `, cls: 'mythic-random' });
 		}
 	}
 }
 export class SceneModal extends Modal {
 	scene: Scene;
 	action: string = "Save";
-	mandDisplay?: DisplayValueComponent = undefined;
-	saveButton?: ButtonComponent = undefined;
-	randomButton?: ButtonComponent = undefined;
-	alterationDropdown?: DropdownComponent = undefined;
-	alterationText?: TextAreaComponent = undefined;
-	meaningDropdown?: DropdownComponent = undefined;
-	infoDisplay1?: DisplayValueComponent = undefined;
-	infoDisplay2?: DisplayValueComponent = undefined;
-	checkAndShow(tables: Tables): void {
+	mandDisplay?: DisplayValueComponent;
+	saveButton?: ButtonComponent;
+	randomButton?: ButtonComponent;
+	alterationDropdown?: DropdownComponent;
+	alterationText?: TextAreaComponent;
+	fateDataModal?: FateDataModal;
+	meaningDropdown?: DropdownComponent;
+	infoDisplay1?: DisplayValueComponent;
+	infoDisplay2?: DisplayValueComponent;
+	infoDisplay3?: DisplayValueComponent;
+	checkAndShow(tables: Tables, narr?: string): void {
 		assertDefined(this.mandDisplay);
 		assertDefined(this.saveButton);
 		assertDefined(this.randomButton);
@@ -377,8 +415,9 @@ export class SceneModal extends Modal {
 		// assertDefined(this.meaningDropdown);
 		assertDefined(this.infoDisplay1);
 		assertDefined(this.infoDisplay2);
+		assertDefined(this.infoDisplay3);
 		const status = this.scene.check();
-		mTrace("scene status checked as", SceneStatus[status]);
+		mTrace("scene status checked as", SceneStatus[status], this.scene.fate === undefined ? "haven't fate," : "have fate,", narr ?? "other");
 		switch (status) {
 			case SceneStatus.NeedsExpected:
 				this.mandDisplay.setValue("Enter the Expected scene description.");
@@ -391,6 +430,9 @@ export class SceneModal extends Modal {
 				break;
 			case SceneStatus.NeedsAlteration:
 				this.mandDisplay.setValue("Enter the Altered scene description.");
+				break;
+			case SceneStatus.NeedsFate:
+				this.mandDisplay.setValue("Enter the Fate Question.");
 				break;
 			case SceneStatus.NeedsMeaning:
 				this.mandDisplay.setValue("Select a Meaning Oracle.");
@@ -405,13 +447,42 @@ export class SceneModal extends Modal {
 		this.saveButton.setDisabled(status < SceneStatus.OK);
 		this.randomButton.setDisabled(status < SceneStatus.NeedsRandom);
 		this.alterationDropdown.setDisabled(status < SceneStatus.NeedsAlterationKind || this.scene.sceneType != SceneType.Altered);
-		this.alterationText.setDisabled(status < SceneStatus.NeedsAlteration || this.scene.sceneType == SceneType.Expected);
+		const cannotEditAlteration = status < SceneStatus.NeedsAlteration || this.scene.sceneType == SceneType.Expected;
+		this.alterationText.setDisabled(cannotEditAlteration);
+		const showFate = this.scene.fate !== undefined;
+		if (status == SceneStatus.NeedsFate && this.scene.fate === undefined) console.warn("fate needed but missing!");
+		if (showFate) {
+			if (this.scene.fate === undefined) console.warn("want to show fate but missing!");
+			assertDefined(this.fateDataModal);
+			if (this.fateDataModal.data === undefined)
+				console.warn("fate modal has no data");
+		}
+		if (this.fateDataModal !== undefined) this.fateDataModal.setVisibility(showFate, "CAS");
+		const cannotSetMeaning = status < SceneStatus.NeedsMeaning
+			|| this.scene.sceneType == SceneType.Expected;
 		if (this.meaningDropdown !== undefined)
-			this.meaningDropdown.setDisabled(status < SceneStatus.NeedsMeaning
-				|| this.scene.sceneType == SceneType.Expected);
-		let [d1, d2] = this.scene.toText(tables);
+			this.meaningDropdown.setDisabled(cannotSetMeaning);
+		const [d1, d2, d3] = this.scene.toText(tables);
 		this.infoDisplay1.setValue(d1);
 		this.infoDisplay2.setValue(d2);
+		this.infoDisplay3.setValue(d3);
+		mTrace('scene', cannotEditAlteration ? "no alter," : "", cannotSetMeaning ? "no mean," : "", showFate ? "see fate," : "not see fate,", this.scene.fate === undefined ? "haven't fate," : "have fate,", this.scene.meaning === undefined ? "haven't meaning," : "have meaning: " + this.scene.meaning.meaningKind, ", type:", this.scene.sceneType, ", kind:", this.scene.kind, SceneStatus[status]);
+	}
+	showAlterationKind(tables: Tables) {
+		switch (this.scene.kind) {
+			case AlterationKind.Expected: break;
+			case AlterationKind.Next: break;
+			case AlterationKind.Tweak: break;
+			case AlterationKind.FateQuestion:
+				assertDefined(this.fateDataModal);
+				if (this.fateDataModal.data == undefined) {
+					assertDefined(this.scene.fate);
+					this.fateDataModal.setData(this.scene.fate, tables);
+				}
+				break;
+			case AlterationKind.Meaning: break;
+			case AlterationKind.Adjustment: break;
+		}
 	}
 	constructor(creating: boolean, app: App, scene: Scene, block: CodeBlock, tables: Tables, plugin: MythicSupportPlugin) {
 		super(app);
@@ -428,14 +499,14 @@ export class SceneModal extends Modal {
 				text.onChange((value) => {
 					if (parseInt(value) !== undefined)
 						this.scene.ident = value;
-					this.checkAndShow(tables);
+					this.checkAndShow(tables, "ident");
 				});
 			});
 		new Setting(this.contentEl).setName('Chaos')
 			.setDesc("The current Chaos Factor").addSlider((slider) => {
 				slider.setLimits(1, 9, 1).setInstant(true).setValue(this.scene.chaos).onChange((value) => {
 					this.scene.chaos = value;
-					this.checkAndShow(tables);
+					this.checkAndShow(tables, "chaos");
 				});
 			});
 		new Setting(this.contentEl)
@@ -444,7 +515,7 @@ export class SceneModal extends Modal {
 				text.setValue(this.scene.expected);
 				text.onChange((value) => {
 					this.scene.expected = value;
-					this.checkAndShow(tables);
+					this.checkAndShow(tables, "exp");
 				});
 			});
 		new Setting(this.contentEl)
@@ -457,17 +528,17 @@ export class SceneModal extends Modal {
 						if (this.scene.meaning !== undefined)
 							mTrace('scene', "on scene randomise, meaning kind is", this.scene.meaning?.meaningKind);
 						this.scene.setRandom(tables, plugin);
-						this.checkAndShow(tables);
+						this.checkAndShow(tables, "dice");
 					});
 			});
 		new Setting(this.contentEl)
 			.setDesc("Decide how to alter the scene.").setName('Alteration Kind').addDropdown((dropDown) => {
 				this.alterationDropdown = dropDown;
 				dropDown.addOptions({
-					expected: 'expected',
+					// expected: 'expected',
 					next: 'next',
 					tweak: 'tweak',
-					fate: 'fate',
+					fatequestion: 'fatequestion',
 					meaning: 'meaning',
 					adjustment: 'adjustment',
 					table: 'table',
@@ -477,41 +548,37 @@ export class SceneModal extends Modal {
 					mTrace('', "alteration kind", value,);
 					this.scene.setAlterationKind(value as AlterationKind);
 					this.scene.useAlterationKind();
-					this.checkAndShow(tables);
+					// assertDefined(this.fateDataModal);
+					// this.fateDataModal.data = this.scene.fate;
+					// this.scene.setRandom(tables, plugin);
+					this.showAlterationKind(tables);
+					this.checkAndShow(tables, "alter");
 				});
 			});
-		// new Setting(this.contentEl)
-		// 	.setDesc("Select which meaning tables to consult.").setName('Meaning').addDropdown((dropDown) => {
-		// 		this.meaningDropdown = dropDown;
-		// 		dropDown.addOption('none', "None");
-		// 		let tabKind, tab;
-		// 		for ([tabKind, tab] of tables.oracles) {
-		// 			if (!tab.meta.noAlt)
-		// 				dropDown.addOption(tabKind, tab.meta.displayName);
-		// 		}
-		// 		dropDown.setValue(this.scene.meaning?.meaningKind ?? "none");
-		// 		dropDown.onChange((value) => {
-		// 			mTrace('scene', "scene meaning changed to", value);
-		// 			if (value != 'none' && this.scene.meaning !== undefined) {
-		// 				this.scene.meaning.meaningKind = value;
-		// 				// TODO update stuff
-		// 			}
-		// 			this.checkAndShow(tables);
-		// 		});
-		// 	});
-		if (this.scene.meaning !== undefined)
-			MeaningModal.makeMeaning(this.contentEl, this.meaningDropdown, tables, (meaningKind: string) => {
-				assertDefined(this.scene.meaning);
-				this.scene.meaning.meaningKind = meaningKind;
-				this.scene.meaning.explain(tables);
-				mTrace('scene', "after meaning, meaning is", this.scene.meaning);
-				this.checkAndShow(tables);
+		if (this.fateDataModal === undefined)
+			this.fateDataModal = new FateDataModal(this.contentEl, tables,
+				() => { this.checkAndShow(tables, "fate"); });
+		this.fateDataModal.setVisibility(this.scene.fate !== undefined, "CON");
+		if (this.scene.fate !== undefined)
+			this.fateDataModal.setData(this.scene.fate, tables);
+		// if (this.scene.meaning !== undefined)
+		MeaningModal.makeMeaning(this.contentEl, this.meaningDropdown, tables,
+			(meaningKind: string) => {
+				if (this.scene.meaning !== undefined) {
+					this.scene.meaning.meaningKind = meaningKind;
+					this.scene.meaning.explain(tables);
+					mTrace('scene', "after meaning, meaning is", this.scene.meaning);
+				}
+				this.checkAndShow(tables, "mean");
 			}, this.scene.meaning);
-		new Setting(this.contentEl).addDisplayValue(disp1 => {
-			this.infoDisplay1 = disp1;
+		new Setting(this.contentEl).addDisplayValue(disp => {
+			this.infoDisplay1 = disp;
 		});
-		new Setting(this.contentEl).addDisplayValue(disp1 => {
-			this.infoDisplay2 = disp1;
+		new Setting(this.contentEl).addDisplayValue(disp => {
+			this.infoDisplay2 = disp;
+		});
+		new Setting(this.contentEl).addDisplayValue(disp => {
+			this.infoDisplay3 = disp;
 		});
 		new Setting(this.contentEl)
 			.setDesc("Describe the scene as altered (or the interrupt scene).")
@@ -522,7 +589,8 @@ export class SceneModal extends Modal {
 				text.setValue(this.scene.alteration ?? "");
 				text.onChange((value) => {
 					this.scene.alteration = value;
-					this.checkAndShow(tables);
+					// mTrace('scene', "setting alteration to", this.scene.alteration);
+					this.checkAndShow(tables, "res");
 				});
 			});
 		new Setting(this.contentEl)
@@ -534,6 +602,7 @@ export class SceneModal extends Modal {
 					.onClick(() => {
 						this.close();
 						const json = scene.toJson();
+						mTrace('scene', "setting scene to", json);
 						let editor = app.workspace.activeEditor?.editor;
 						if (editor !== undefined)
 							block.replaceContents(Scene.TAG, json, editor);
@@ -547,6 +616,6 @@ export class SceneModal extends Modal {
 						this.close();
 					}),
 			);
-		this.checkAndShow(tables);
+		this.checkAndShow(tables, "start");
 	}
 }

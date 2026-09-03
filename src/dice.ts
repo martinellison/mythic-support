@@ -3,11 +3,11 @@ import { Type, plainToInstance, instanceToPlain } from 'class-transformer';
 import { Modal, App, Setting, MarkdownPostProcessorContext } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
 // import { MythicSupportPluginSettings } from './settings.js';
-import MythicSupportPlugin, { assertDefined, mTrace } from './main.js';
+import MythicSupportPlugin, { assertDefined, mTrace, mythicDice } from './main.js';
 import { Question } from './question.js';
 
 const diceRegex: RegExp = /(?<sign>[-+]?)(?<numDice>[1-9]+)?([dD](?<die>[0-9]+))?/g;
-/** dice text should come after a dice block */
+/**  implements an zzz block. a question block that just throws some dice. */
 export class Dice {
 	text: string;
 	result: number = 0;
@@ -18,14 +18,14 @@ export class Dice {
 	constructor(text: string) {
 		this.text = text;
 	}
-	/** convert from a JSON string */
+	/** convert Dice from a JSON string */
 	static fromJson(source: string): Dice {
 		// @ts-ignore
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
 		let dice: Dice = plainToInstance(Dice, JSON.parse(source));
 		return dice;
 	}
-	/** convert to a JSON string */
+	/** convert Dice to a JSON string */
 	toJson(): string {
 		return JSON.stringify(instanceToPlain(this));
 	}
@@ -64,7 +64,7 @@ export class Dice {
 		return d.throw();
 	}
 }
-/** generates a random number*/
+/** represents a dice expression like `2d6`. Ggenerates a random number */
 export class DiceRandom {
 	items: Array<DiceItem> = [];
 	constructor(s: string) {
@@ -127,7 +127,7 @@ class DiceItem {
 		let part = 0;
 		let explains = new Array<string>;
 		for (let i = 0; i < this.numDice; i++) {
-			const thrown = Question.dice(this.die);
+			const thrown = mythicDice(this.die);
 			part += thrown;
 			explains.push(`${this.sign}${thrown}`);
 		}
@@ -136,7 +136,7 @@ class DiceItem {
 		return [part, explains.join("")];
 	}
 }
-
+/** display a Dice for editing */
 export class DiceModal extends Modal {
 	dice: Dice;
 	constructor(app: App, dice: Dice, block: CodeBlock) {

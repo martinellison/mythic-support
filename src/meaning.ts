@@ -1,11 +1,11 @@
 import { plainToInstance, instanceToPlain } from 'class-transformer';
 import { Modal, App, Setting, MarkdownPostProcessorContext, DropdownComponent } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
-import { assertDefined, mTrace } from './main.js';
+import { assertDefined, mTrace, mythicDice } from './main.js';
 import { Question } from './question.js';
-import { MeaningTable, Oracle, Tables } from './tables2.js';
+import { Oracle, Tables } from './tables2.js';
 
-/** meaning text should come after a meaning block */
+/**  implements an zzz block. meaning text should come after a meaning block */
 export class Meaning {
 	description: string = "";
 	meaningKind: string = 'action1';
@@ -15,8 +15,8 @@ export class Meaning {
 	constructor(meaningKind: string = 'action1') {
 		this.meaningKind = meaningKind;
 	}
-	typ(): string { return 'meaning'; }
-	/** convert from a JSON string */
+	// typ(): string { return 'meaning'; }
+	/** convert from a JSON string to a Meaning. */
 	static fromJson(source: string): Meaning {
 		// @ts-ignore
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
@@ -24,7 +24,7 @@ export class Meaning {
 		if (meaning.meaningKind == '') meaning.meaningKind = 'action1';
 		return meaning;
 	}
-	/** convert to a JSON string */
+	/** convert  a Meaning to a JSON string */
 	toJson(): string {
 		return JSON.stringify(instanceToPlain(this));
 	}
@@ -39,9 +39,10 @@ export class Meaning {
 	}
 	/** This throws the dice. */
 	throwDice(max: number[]) {
-		for (let d = 0; d < 2; d++) this.randoms[d] = Question.dice(max[d] ?? 100);
+		for (let d = 0; d < 2; d++) this.randoms[d] = mythicDice(max[d] ?? 100);
 		mTrace('meaning', "meaning result is", this.randoms);
 	};
+	/** sets `this.result to a textual description of the randomly chosen meaning. */
 	explain(tables: Tables) {
 		const tab = tables.oracles.get(this.meaningKind);
 		if (tab === undefined) {
@@ -57,7 +58,7 @@ export class Meaning {
 	static meaning1(tables: Tables, meaningKind: string): string {
 		return meaningKind;
 	}
-	/** this selects another meaning. */
+	/** this selects another meaning. This is different from `meaning1` if the `alt` flag is et. */
 	static meaning2(tables: Tables, meaningKind: string): string {
 		if (meaningKind == '') return '';
 		// for (const [k, _v] of tables.meaning) mTrace('meaning', "meaning table", k);
@@ -92,6 +93,7 @@ export class Meaning {
 		const m2 = m2t[q2 - 1] ?? "";
 		return `${m1}/${m2} (${q1}/${q2})`;
 	}
+	/** this returns the sizes of the selected tables. */
 	tableSizes(tables: Tables): Array<number> {
 		assertDefined(tables);
 		// if (this.meaningKind == 'none') console.warn("no meaning kind in tableSizes");
@@ -103,6 +105,7 @@ export class Meaning {
 		return ts;
 	}
 }
+/** dialog to edit a Meaning. */
 export class MeaningModal extends Modal {
 	meaning: Meaning;
 	constructor(app: App, meaning: Meaning, block: CodeBlock, tables: Tables) {
@@ -118,24 +121,12 @@ export class MeaningModal extends Modal {
 					this.meaning.description = value;
 				});
 			});
-		// new Setting(this.contentEl).setDesc("Select which meaning tables to consult.").setName('Meaning').addDropdown((dropDown) => {
-		// 	dropDown.addOption('none', 'None');
-		// 	let tabKind, tab;
-		// 	for ([tabKind, tab] of tables.oracles) {
-		// 		if (!tab.meta.noAlt)
-		// 			dropDown.addOption(tabKind, tab.meta.displayName);
-		// 	}
-		// 	dropDown.setValue(this.meaning.meaningKind);
-		// 	dropDown.onChange((value) => {
-		// 		mTrace('meaning', "meaning changed to", value);
-		// 		// if (value != 'none') {
-		// 		this.meaning.meaningKind = value;
-		// 	});
-		// });
 		let dc: DropdownComponent | undefined;
 		MeaningModal.makeMeaning(this.contentEl, dc, tables, (meaningKind: string) => {
-			this.meaning.meaningKind = meaningKind;
-			this.meaning.explain(tables);
+			if (meaning !== undefined) {
+				this.meaning.meaningKind = meaningKind;
+				this.meaning.explain(tables);
+			}
 		}, this.meaning);
 		new Setting(this.contentEl)
 			.addButton((btn) => btn
@@ -158,24 +149,24 @@ export class MeaningModal extends Modal {
 					this.close();
 				}));
 	}
-	static makeMeaning(elt: HTMLElement, dropDownResult: DropdownComponent | undefined, tables: Tables, onChange: (meaningKind: string) => void, meaning: Meaning) {
-		if (meaning === undefined) { console.warn("no meaning"); return; }
+	/** create a drop down to select a meaning oracle. */
+	static makeMeaning(elt: HTMLElement, dropDownResult: DropdownComponent | undefined, tables: Tables, onChange: (meaningKind: string) => void, meaning: Meaning | undefined) {
+		if (meaning === undefined) { console.warn("no meaning for dropdown"); } // LATER if this actually happens, fix it; otherwise change it to an assert
 		new Setting(elt)
 			.setDesc("Select which meaning tables to consult.").setName('Meaning').addDropdown((dropDown) => {
 				dropDownResult = dropDown;
-				// dropDown.addOption('none', "None");
 				let tabKind, tab;
 				for ([tabKind, tab] of tables.oracles) {
 					if (!tab.meta.noAlt)
 						dropDown.addOption(tabKind, tab.meta.displayName);
 				}
-				dropDown.setValue(meaning.meaningKind);
+				dropDown.setValue(meaning === undefined ? 'action1' : meaning.meaningKind);
 				dropDown.onChange((value) => {
 					mTrace('meaning', "meaning changed to", value);
-					if (meaning !== undefined) {
-						// meaning.meaningKind = value; // does not work?
-						onChange(value);
-					}
+					// if (meaning !== undefined) {
+					// meaning.meaningKind = value; // does not work?
+					onChange(value);
+					// }
 				});
 			});
 	}

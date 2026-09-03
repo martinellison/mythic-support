@@ -55,6 +55,16 @@ class CheckTable {
 		}
 		this.entries = entries;
 	}
+	/** throw the dice, with values that can be fed to `resolve()` */
+	throwDiceStandardised(): number {
+		if (this.diceType === undefined) {
+			return Math.floor(this.totWeights * Math.random());
+		} else {
+			const d = new DiceRandom(this.diceType);
+			const [diceThrow, _descr] = d.throw();
+			return diceThrow - d.min() + 1;
+		}
+	}
 	/** This selects an entry from a table, given a random number. The table must be in increasing order. The tables can be weighted (not all entries have the same probability). `value` is the dice throw and should be 'standardised', meaning that the lowest value should be 1. If the value is too low, the first entry is returned; if too high, the last. */
 	resolve(value: number): CheckTableEntry {
 		mTrace("resolving", value);
@@ -72,7 +82,7 @@ class CheckTable {
 	}
 }
 /** which kind of object */
-export enum ThingFamily { ThingObject, OracleResponse, SimpleText };
+export enum ThingFamily { ThingObject, ThingChoice, OracleResponse, SimpleText };
 /** describes some objects, including how to randomise them. */
 export class MythicObjectMeta {
 	family: ThingFamily = ThingFamily.ThingObject;
@@ -112,22 +122,6 @@ export class Oracle {
 	}
 	texts(): Array<string> {
 		return this.entries.entries.map((entry) => entry.text);
-	}
-}
-export class MeaningTable {
-	texts: Array<string> = [];
-	alt?: string;
-	noAlt?: boolean;
-	display: string = "";
-	// TODO display name
-	constructor(texts: Array<string> = [],
-		alt?: string,
-		noAlt?: boolean,
-		display: string = "") {
-		this.texts = texts;
-		this.alt = (alt === undefined || alt == "") ? undefined : alt;
-		this.noAlt = noAlt ?? false;
-		this.display = display;
 	}
 }
 /** Tables read from a configuration file. */
@@ -192,6 +186,7 @@ export class KdlTables {
 		// mTrace('kdl', "tables", table);
 		return table;
 	}
+	/** gets all the KDL */
 	static async getKdl(file: string, table: Tables, vault: Vault): Promise<ParseResult | undefined> {
 		const path = vault.getFileByPath(file);
 		if (path == null) {
@@ -211,6 +206,7 @@ export class KdlTables {
 		}
 		return kdl;
 	}
+	/** gets all the questions from the KDL */
 	static getQuestions(children: KdlNode[], table: Tables) {
 		children.forEach((odds: KdlNode) => {
 			// mTrace('', "odds", odds);
@@ -223,6 +219,7 @@ export class KdlTables {
 			table.questionOdds.push(new QuestionOdds(ident, display, mod));
 		});
 	}
+	/** gets all the fate types from the KDL */
 	static getFate(node: KdlNode, table: Tables) {
 		const props = new Map(Object.entries(node.properties));
 		const diceType = props.get('dice') as string;
@@ -241,6 +238,7 @@ export class KdlTables {
 		});
 		table.fateCheckAnswers.fix(entries, diceType);
 	}
+	/** gets all the events from the KDL */
 	static getEventFocus(node: KdlNode, table: Tables) {
 		const props = new Map(Object.entries(node.properties));
 		const diceType = props.get('dice') as string;
@@ -257,6 +255,7 @@ export class KdlTables {
 		});
 		table.eventFocus.fix(entries, diceType);
 	}
+	/** gets all the   objects from the KDL */
 	static getObjects(node: KdlNode, table: Tables) {
 		node.children.forEach(kind => {
 			// mTrace('', "object kind", kind);
@@ -271,6 +270,7 @@ export class KdlTables {
 			table.objectKinds.set(ident, new MythicObjectMeta(ThingFamily.ThingObject, kind.name, description, display, "", false, progress));
 		});
 	}
+	/** gets all the simple object types from the KDL */
 	static getSimples(node: KdlNode, table: Tables) {
 		node.children.forEach(itemNode => {
 			const ident: string = itemNode.values[0] ?? "";
@@ -282,6 +282,7 @@ export class KdlTables {
 			table.simples.set(ident, new MythicObjectMeta(ThingFamily.SimpleText, ident, description, display, "", false, progress));
 		});
 	}
+	/** gets all the oracles from the KDL */
 	static getOracles(node: KdlNode, table: Tables) {
 		node.children.forEach(tableNode => {
 			const ident = tableNode.values[0] ?? "";
@@ -300,6 +301,7 @@ export class KdlTables {
 				const itemWeight = parseInt(itemProps.get('weight') as string ?? "1") ?? 1;
 				const interpretation = itemProps.get('interpretation') as Interpretation ?? Interpretation.None;
 				let entry = new CheckTableEntry(itemWeight, itemIdent, interpretation);
+				// mTrace('table oracle', "entry", entry);
 				entries.push(entry);
 			});
 			const progress = false;
@@ -312,23 +314,6 @@ export class KdlTables {
 	static async loadFromFile(file: string, table: Tables, vault: Vault) {
 		const kdl = await KdlTables.getKdl(file, table, vault);
 		assertDefined(kdl);
-		// const path = vault.getFileByPath(file);
-		// if (path == null) {
-		// 	console.warn("bad path for KDL", file, "resolved as", path);
-		// 	return;
-		// }
-		// const source = await vault.cachedRead(path);
-		// const kdl = parse(source);
-		// mTrace('kdl', "KDL parse result", kdl);
-		// if (kdl.errors.length) {
-		// 	for (const e of kdl.errors) console.warn("kdl error", e);
-		// 	if (table.result == "") {
-		// 		const errTxt = kdl.errors.map(ex => `${ex} `).join("\n");
-		// 		table.result = `in parsing KDL: ${errTxt}`;
-		// 	}
-		// 	console.error("bad KDL", table.result);
-		// 	return table;
-		// }
 		let nodes: Array<KdlNode> = plainToInstance(Array<KdlNode>, kdl.output);
 		// mTrace('', "tables as read from KDL", nodes);
 		nodes.forEach((node: KdlNode) => {
@@ -336,110 +321,21 @@ export class KdlTables {
 			switch (node.name) {
 				case 'questions':
 					KdlTables.getQuestions(node.children, table);
-					// node.children.forEach(odds => {
-					// 	// mTrace('', "odds", odds);
-					// 	const ident = odds.values[0] ?? "";
-					// 	const props = new Map(Object.entries(odds.properties));
-					// 	// mTrace('tables', "props is", props);
-					// 	assertDefined(props);
-					// 	const display = props.get('display') as string;
-					// 	const mod = parseInt(props.get('mod') as string ?? "0") ?? 0;
-					// 	table.questionOdds.push(new QuestionOdds(ident, display, mod));
-					// });
 					break;
-				case 'fate': {
-					// 	const props = new Map(Object.entries(node.properties));
-					// 	const diceType = props.get('dice') as string;
-					// 	// mTrace('', "num dice", diceType);
-					// 	let entries = new Array<CheckTableEntry>;
-					// 	node.children.forEach(odds => {
-					// 		// mTrace('', "odds", odds);
-					// 		const text = odds.values[0] ?? "";
-					// 		const props = new Map(Object.entries(odds.properties));
-					// 		assertDefined(props);
-					// 		// const interpretation = props.interpretation as string;
-					// 		// const min = parseInt(props.min as string) ?? 0;
-					// 		const weight = parseInt(props.get('weight') as string ?? "1") ?? 1;
-					// 		// mTrace('', "fate", text, weight);
-					// 		entries.push(new CheckTableEntry(weight, text));
-					// 	});
-					// 	table.fateCheckAnswers.fix(entries, diceType);
+				case 'fate':
 					KdlTables.getFate(node, table);
-				}
 					break;
-				case 'eventFocus': {
+				case 'eventFocus':
 					KdlTables.getEventFocus(node, table);
-					// const props = new Map(Object.entries(node.properties));
-					// const diceType = props.get('dice') as string;
-					// let entries = new Array<CheckTableEntry>;
-					// node.children.forEach(chance => {
-					// 	// mTrace('', "chance", chance);
-					// 	const text = chance.values[0] ?? "";
-					// 	const props = new Map(Object.entries(chance.properties));
-					// 	assertDefined(props);
-					// 	// const text = props.text as string;
-					// 	const interpretation = props.get('interpretation') as Interpretation;
-					// 	// const min = parseInt(props.min as string) ?? 0;
-					// 	entries.push(new CheckTableEntry(parseInt(props.get('weight') as string ?? "1") ?? 1, text));
-					// });
-					// table.eventFocus.fix(entries, diceType);
-				}
 					break;
 				case 'objects':
 					KdlTables.getObjects(node, table);
-					// node.children.forEach(kind => {
-					// 	// mTrace('', "object kind", kind);
-					// 	const ident = kind.values[0] ?? "";
-					// 	const props = new Map(Object.entries(kind.properties));
-					// 	assertDefined(props);
-					// 	// const text = odds.text as string;
-					// 	const display = props.get('display') as string;
-					// 	const description = props.get('description') as string;
-					// 	const progress = props.get('progress') as boolean;
-					// 	// mTrace('', "object kind has", kind, description, display);
-					// 	table.objectKinds.set(ident, new MythicObjectMeta(ThingFamily.ThingObject, kind.name, description, display, "", false, progress));
-					// });
 					break;
 				case 'simples':
 					KdlTables.getSimples(node, table);
-					// node.children.forEach(itemNode => {
-					// 	const ident: string = itemNode.values[0] ?? "";
-					// 	const props = new Map(Object.entries(itemNode.properties));
-					// 	assertDefined(props);
-					// 	const display = props.get('display') as string;
-					// 	const description = props.get('description') as string;
-					// 	const progress = false;
-					// 	table.simples.set(ident, new MythicObjectMeta(ThingFamily.SimpleText, ident, description, display, "", false, progress));
-					// });
 					break;
-				case 'oracles': {
+				case 'oracles':
 					KdlTables.getOracles(node, table);
-					// 	node.children.forEach(tableNode => {
-					// 		const ident = tableNode.values[0] ?? "";
-					// 		const props = new Map(Object.entries(tableNode.properties));
-					// 		assertDefined(props);
-					// 		const diceType = props.get('dice') as string;
-					// 		const description = props.get('description') as string;
-					// 		let alt = props.get('alt') as string;
-					// 		let noAlt = props.get('noAlt') as boolean;
-					// 		let display = props.get('display') as string ?? ident;
-					// 		let entries = new Array<CheckTableEntry>;
-					// 		// let items = new Array<string>;
-					// 		tableNode.children.forEach(itemNode => {
-					// 			const itemIdent = itemNode.values[0] ?? "";
-					// 			const itemProps = new Map(Object.entries(tableNode.properties));
-					// 			const itemWeight = parseInt(itemProps.get('weight') as string ?? "1") ?? 1;
-					// 			const interpretation = itemProps.get('interpretation') as Interpretation ?? Interpretation.None;
-					// 			let entry = new CheckTableEntry(itemWeight, itemIdent, interpretation);
-					// 			entries.push(entry);
-					// 		});
-					// 		const progress = false;
-					// 		const meta = new MythicObjectMeta(ThingFamily.OracleResponse, ident, description, display, alt, noAlt, progress);
-					// 		let checkTable = new CheckTable;
-					// 		checkTable.fix(entries, diceType);
-					// 		table.oracles.set(ident, new Oracle(meta, checkTable, checkTable.diceMax));
-					// 	});
-				}
 					break;
 				default:
 					// mTrace('', "need to implement", node.name);
