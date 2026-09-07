@@ -1,10 +1,10 @@
-import { Type, plainToInstance, instanceToPlain, Expose } from 'class-transformer';
+import { plainToInstance, instanceToPlain, Expose } from 'class-transformer';
 // import 'reflect-metadata';
 import { Modal, App, Setting, MarkdownPostProcessorContext } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
 // import { MythicSupportPluginSettings } from './settings.js';
-import MythicSupportPlugin, { assertDefined, mTrace, mythicDice, shorten } from './main.js';
-import { Question } from './question.js';
+import { assertDefined, mTrace, mythicDice, shorten } from './main.js';
+// import { Question } from './question.js';
 
 const diceRegex: RegExp = /(?<sign>[-+]?)(?<numDice>[1-9]+)?([dD](?<die>[0-9]+))?/g;
 /**  implements an zzz block. a question block that just throws some dice. */
@@ -171,7 +171,7 @@ export class DiceModal extends Modal {
 				.setCta()
 				.onClick(async (): Promise<void> => {
 					this.close();
-					let match = Dice.match(this.dice.text);
+					let _match = Dice.match(this.dice.text);
 					mTrace('dice', "saving dice", dice.text);
 					const [result, explain] = dice.throw();
 					dice.result = result;

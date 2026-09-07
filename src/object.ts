@@ -54,7 +54,7 @@ export class MythicObject {
 			const object: MythicObject = MythicObject.fromJson(source);
 			const meta = tables.meta(object.kind);
 			const tfs: string = (meta === undefined ? "unknown" : (ThingFamily[meta.family] ?? 'unknown')).toLowerCase();
-			let cl = `mythic-object mythic-${object.kind} mythic-${tfs}` + ((object.removed ?? false) ? ' mythic-removed' : '');
+			// let cl = `mythic-object mythic-${object.kind} mythic-${tfs}` + ((object.removed ?? false) ? ' mythic-removed' : '');
 			const tag = object.selection ? " selection" : "";
 			divElt.createSpan({ text: `(${object.kind}${tag})` });
 			if (object.marker !== undefined && object.marker != "")

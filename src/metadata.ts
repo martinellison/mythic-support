@@ -1,5 +1,5 @@
 import { CachedMetadata, MetadataCache, Pos, TAbstractFile, TFile, Vault, } from "obsidian";
-import MythicSupportPlugin, { assertDefined, mTrace, shorten } from "./main.js";
+import MythicSupportPlugin, { assertDefined, mTrace } from "./main.js";
 import { MythicObject } from "./object.js";
 /** a MarkDown code block */
 export class Block {
@@ -163,7 +163,7 @@ export class Metadata {
 				// mTrace('', "scanning file (scan all)", file);
 				const metadata = cache.getFileCache(file);
 				// mTrace('', "file read at start", file, metadata === undefined ? "undefined" : "defined");
-				const data = await vault.cachedRead(file);
+				// const data = await vault.cachedRead(file);
 				// mTrace('', "data length", data.length, "metadata", metadata);
 				if (metadata !== undefined && metadata !== null) {
 					const data = await vault.cachedRead(file);

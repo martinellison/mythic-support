@@ -4,7 +4,7 @@ import { CodeBlock } from './codeblock.js';
 import { Tables } from './tables2.js';
 import { EventFocus, } from './eventfocus.js';
 import MythicSupportPlugin, { assertDefined, mTrace, mythicDice, shorten } from './main.js';
-import { Question, QuestionModal } from './question.js';
+// import { Question, QuestionModal } from './question.js';
 import { FateData, FateDataModal as FateDataModal, ChaosProvider } from './fatedata.js';
 import { Meaning, MeaningModal } from './meaning.js';
 

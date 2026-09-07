@@ -1,8 +1,8 @@
-import { Type, plainToInstance, instanceToPlain, Expose } from 'class-transformer';
+import { plainToInstance, instanceToPlain, Expose } from 'class-transformer';
 import { Modal, App, Setting, MarkdownPostProcessorContext, DropdownComponent } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
 import { assertDefined, mTrace, mythicDice, shorten } from './main.js';
-import { Question } from './question.js';
+// import { Question } from './question.js';
 import { Oracle, Tables } from './tables2.js';
 
 /**  implements an zzz block. meaning text should come after a meaning block */

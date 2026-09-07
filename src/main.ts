@@ -26,7 +26,7 @@ export function assertDefined<T>(value: T | undefined | null): asserts value is 
 }
 /** displays a trace message if required */
 export function mTrace(narr: string, ...vals: any[]): void {
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
+	// // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
 	// console.log("mythic", `${narr}: `, ...vals); 
 }
 /** shorten a string. */

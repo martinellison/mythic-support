@@ -1,6 +1,6 @@
 import { parse, ParseResult } from 'kdljs';
 import { Vault } from "obsidian";
-import { Type, plainToInstance, instanceToPlain, Expose } from 'class-transformer';
+import { Type, plainToInstance, Expose } from 'class-transformer';
 import { QuestionOdds } from './question.js';
 import { assertDefined, mTrace } from './main.js';
 import { DiceRandom } from './dice.js';
