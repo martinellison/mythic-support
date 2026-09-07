@@ -1,16 +1,16 @@
-import { plainToInstance, instanceToPlain } from 'class-transformer';
+import { Type, plainToInstance, instanceToPlain, Expose } from 'class-transformer';
 import { Modal, App, Setting, MarkdownPostProcessorContext, DropdownComponent } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
-import { assertDefined, mTrace, mythicDice } from './main.js';
+import { assertDefined, mTrace, mythicDice, shorten } from './main.js';
 import { Question } from './question.js';
 import { Oracle, Tables } from './tables2.js';
 
 /**  implements an zzz block. meaning text should come after a meaning block */
 export class Meaning {
-	description: string = "";
-	meaningKind: string = 'action1';
-	randoms: Array<number> = [0, 0];
-	result: string = "";
+	@Expose() description: string = "";
+	@Expose() meaningKind: string = 'action1';
+	@Expose() randoms: Array<number> = [0, 0];
+	@Expose() result: string = "";
 	static readonly TAG = 'mythic-meaning';
 	constructor(meaningKind: string = 'action1') {
 		this.meaningKind = meaningKind;
@@ -18,11 +18,16 @@ export class Meaning {
 	// typ(): string { return 'meaning'; }
 	/** convert from a JSON string to a Meaning. */
 	static fromJson(source: string): Meaning {
-		// @ts-ignore
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
-		let meaning: Meaning = plainToInstance(Meaning, JSON.parse(source));
-		if (meaning.meaningKind == '') meaning.meaningKind = 'action1';
-		return meaning;
+		try {
+			// @ts-ignore
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
+			let meaning: Meaning = plainToInstance(Meaning, JSON.parse(source), { excludeExtraneousValues: true });
+			if (meaning.meaningKind == '') meaning.meaningKind = 'action1';
+			return meaning;
+		} catch (error) {
+			console.error("error parsing meaning: ", error, "reading:", shorten(source));
+			throw error;
+		}
 	}
 	/** convert  a Meaning to a JSON string */
 	toJson(): string {
@@ -31,11 +36,17 @@ export class Meaning {
 	/** create HTML for display */
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext) {
 		// assertDefined(tables);
-		mTrace('', "rendering scene", source);
-		const meaning: Meaning = Meaning.fromJson(source);
 		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-meaning' });
-		divElt.createSpan({ text: `(meaning) ${meaning.description}:` });
-		divElt.createEl('b', { text: ` ${meaning.result}` });
+		try {
+			mTrace('meaning', "rendering meaning", source);
+			const meaning: Meaning = Meaning.fromJson(source);
+			divElt.createSpan({ text: `(meaning) ${meaning.description}:` });
+			divElt.createEl('b', { text: ` ${meaning.result}` });
+		} catch (error) {
+			const msg = `error when parsing meaning: ${error as Error}`;
+			console.error(msg);
+			divElt.createSpan({ text: msg, cls: 'mythic-error' });
+		}
 	}
 	/** This throws the dice. */
 	throwDice(max: number[]) {

@@ -1,16 +1,16 @@
-import { plainToInstance, instanceToPlain } from 'class-transformer';
+import { plainToInstance, instanceToPlain, Expose } from 'class-transformer';
 import { Modal, App, Setting, MarkdownPostProcessorContext, } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
-import MythicSupportPlugin, { assertDefined, mTrace } from './main.js';
+import MythicSupportPlugin, { assertDefined, mTrace, shorten } from './main.js';
 import { Metadata } from './metadata.js';
 import { Tables } from './tables2.js';
 
 /** implements an Adventure block. Adventure text should come after a adventure block */
 export class Adventure {
 	static readonly TAG = "mythic-adventure";
-	description: string;
-	showLists: boolean;
-	count: number; // used to fake change and force rerendering
+	@Expose() description: string = "";
+	@Expose() showLists: boolean = true;
+	@Expose() count: number = 0; // used to fake change and force rerendering
 	constructor(description: string) {
 		this.description = description;
 		this.showLists = false;
@@ -18,10 +18,15 @@ export class Adventure {
 	}
 	/** convert from a JSON string */
 	static fromJson(source: string): Adventure {
-		// @ts-ignore
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
-		let adventure: Adventure = plainToInstance(Adventure, JSON.parse(source));
-		return adventure;
+		try {
+			// @ts-ignore
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
+			let adventure: Adventure = plainToInstance(Adventure, JSON.parse(source), { excludeExtraneousValues: true });
+			return adventure;
+		} catch (error) {
+			console.error("error parsing adventure: ", error, "reading:", shorten(source));
+			throw error;
+		}
 	}
 	/** convert to a JSON string */
 	toJson(): string {
@@ -30,20 +35,27 @@ export class Adventure {
 	/** create HTML for display */
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext, metadata: Metadata, tables: Tables): void {
 		assertDefined(tables);
-		const adventure: Adventure = Adventure.fromJson(source);
 		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-adventure' });
-		divElt.createSpan({ text: "(adventure) " });
-		divElt.createEl('i', { text: adventure.description.trim(), });
-		if (adventure.showLists && tables.objectKinds !== undefined) { // LATER recode to pull all objects using one call
-			tables.objectKinds.forEach((kind, ident) => {
-				let kindElt = divElt.createDiv();
-				kindElt.createEl('b', { text: `${kind.displayName}: ` });
-				// const objects = metadata.blockTable.objects(ident).map(ch => (ch.marker !== undefined && ch.marker.trim() != "" ? ` [${ch.marker}] ` : "") + ch.name);
-				const objects = metadata.blockTable.objectNames(ident);
-				mTrace('adventure', "for adventure", ident, kind, objects);
-				kindElt.createSpan({ text: ` ${objects.join(", ")}` });
-				mTrace('adventure', (`${ident}: found ${objects.length}`));
-			});
+		try {
+			const adventure: Adventure = Adventure.fromJson(source);
+			mTrace('adventure', "rendering adventure");
+			divElt.createSpan({ text: "(adventure) " });
+			divElt.createEl('i', { text: adventure.description.trim(), });
+			if (adventure.showLists && tables.objectKinds !== undefined) { // LATER recode to pull all objects using one call
+				tables.objectKinds.forEach((kind, ident) => {
+					let kindElt = divElt.createDiv();
+					kindElt.createEl('b', { text: `${kind.displayName}: ` });
+					// const objects = metadata.blockTable.objects(ident).map(ch => (ch.marker !== undefined && ch.marker.trim() != "" ? ` [${ch.marker}] ` : "") + ch.name);
+					const objects = metadata.blockTable.objectNames(ident);
+					mTrace('adventure', "for adventure", ident, kind, objects);
+					kindElt.createSpan({ text: ` ${objects.join(", ")}` });
+					mTrace('adventure', (`${ident}: found ${objects.length}`));
+				});
+			}
+		} catch (error) {
+			const msg = `error when parsing adventure: ${error as Error}`;
+			console.error(msg);
+			divElt.createSpan({ text: msg, cls: 'mythic-error' });
 		}
 	}
 }

@@ -1,18 +1,18 @@
-import { Type, plainToInstance, instanceToPlain } from 'class-transformer';
+import { Type, plainToInstance, instanceToPlain, Expose } from 'class-transformer';
 // import 'reflect-metadata';
 import { Modal, App, Setting, MarkdownPostProcessorContext } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
 // import { MythicSupportPluginSettings } from './settings.js';
-import MythicSupportPlugin, { assertDefined, mTrace, mythicDice } from './main.js';
+import MythicSupportPlugin, { assertDefined, mTrace, mythicDice, shorten } from './main.js';
 import { Question } from './question.js';
 
 const diceRegex: RegExp = /(?<sign>[-+]?)(?<numDice>[1-9]+)?([dD](?<die>[0-9]+))?/g;
 /**  implements an zzz block. a question block that just throws some dice. */
 export class Dice {
-	text: string;
-	result: number = 0;
-	explain: string = "";
-	description: string = "";
+	@Expose() text: string;
+	@Expose() result: number = 0;
+	@Expose() explain: string = "";
+	@Expose() description: string = "";
 	static readonly TAG = 'mythic-dice';
 
 	constructor(text: string) {
@@ -20,10 +20,16 @@ export class Dice {
 	}
 	/** convert Dice from a JSON string */
 	static fromJson(source: string): Dice {
-		// @ts-ignore
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
-		let dice: Dice = plainToInstance(Dice, JSON.parse(source));
-		return dice;
+		try {
+			// @ts-ignore
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
+			let dice: Dice = plainToInstance(Dice, JSON.parse(source), { excludeExtraneousValues: true });
+			return dice;
+		} catch (error) {
+			console.error("error parsing dice: ", error, "reading:", shorten(source));
+			// return new MythicObject("", "", "", "", false);
+			throw error;
+		}
 	}
 	/** convert Dice to a JSON string */
 	toJson(): string {
@@ -31,7 +37,7 @@ export class Dice {
 	}
 	/** create HTML for display */
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext) {
-		mTrace('dice', "rendering scene", source);
+		// mTrace('dice', "rendering dice", source);
 		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-dice' });
 		try {
 			const dice: Dice = Dice.fromJson(source);

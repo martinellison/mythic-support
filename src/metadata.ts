@@ -1,5 +1,5 @@
 import { CachedMetadata, MetadataCache, Pos, TAbstractFile, TFile, Vault, } from "obsidian";
-import MythicSupportPlugin, { assertDefined, mTrace } from "./main.js";
+import MythicSupportPlugin, { assertDefined, mTrace, shorten } from "./main.js";
 import { MythicObject } from "./object.js";
 /** a MarkDown code block */
 export class Block {
@@ -30,7 +30,7 @@ export class BlockTable {
 	}
 	/** analyse a code block and add it to BlockTable */
 	analyseCodeBlock(data: string, pos: Pos, file: TFile, narr: string): void {
-		// mTrace('', "analysing", file.path);
+		// mTrace('', "analysing code block in", file.path, "with:", shorten(data), narr);
 		let out_lines = new Array<string>;
 		const in_lines = data.split('\n');
 		// mTrace('', "code block", pos, data.substring(pos.start.offset, pos.end.offset - pos.start.offset));
@@ -97,6 +97,7 @@ export class Metadata {
 	}
 	/** This is called whenever a note file has changed. It scans all th code blocks. */
 	onChanged(file: TFile, data: string, cache: CachedMetadata, plugin: MythicSupportPlugin, narr: string) {
+		mTrace('metadata', "scanning file", file);
 		if (plugin === undefined) { console.warn(`onChanged no plugin, ${file.path}, ${narr}`); }
 		else if (plugin.settings === undefined) { console.warn("onChanged no settings", narr); }
 		else {

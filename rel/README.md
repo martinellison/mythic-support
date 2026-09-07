@@ -8,7 +8,7 @@ This is not an official product of Word Mill Games.
 
 ## Using this plugin
 
-See "How to write your own adventure.md" in the release folder for advice on how to install and use this plugin.
+See [["How to write your own adventure.md"]] in this folder for advice on how to install and use this plugin.
 
 The project is hosted at https://github.com/martinellison/mythic-support, which includes the source code for this plugin.
 

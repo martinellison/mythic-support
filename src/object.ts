@@ -1,24 +1,24 @@
-import { plainToInstance, instanceToPlain } from 'class-transformer';
+import { plainToInstance, instanceToPlain, Expose } from 'class-transformer';
 import { Modal, App, Setting, MarkdownPostProcessorContext } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
 import { MythicObjectMeta, Tables, ThingFamily } from './tables2.js';
-import MythicSupportPlugin, { assertDefined, mTrace } from './main.js';
+import MythicSupportPlugin, { assertDefined, mTrace, shorten } from './main.js';
 import { Metadata } from './metadata.js';
 
 /**  MythicObject implements an Object block.  Object text should come after a object block */
 export class MythicObject {
 	static readonly TAG = "mythic-object";
-	kind: string = "";
-	name: string = "";
-	marker: string = ""; // for marking special objects
-	description: string;
-	diceThrow: number = 0;
-	removed?: boolean;
-	maxProgress: number = 0; // 0 means not a progress thread
-	progress: number = 0;
-	needsFlashpoint: boolean = false;
-	selection: boolean = false;
-	selected: string = "";
+	@Expose() kind: string = "";
+	@Expose() name: string = "";
+	@Expose() marker: string = ""; // for marking special objects
+	@Expose() description: string;
+	@Expose() diceThrow: number = 0;
+	@Expose() removed?: boolean;
+	@Expose() maxProgress: number = 0; // 0 means not a progress thread
+	@Expose() progress: number = 0;
+	@Expose() needsFlashpoint: boolean = false;
+	@Expose() selection: boolean = false;
+	@Expose() selected: string = "";
 	constructor(kind: string, name: string, marker: string, description: string, selection: boolean) {
 		this.kind = kind;
 		this.name = name;
@@ -31,11 +31,16 @@ export class MythicObject {
 	}
 	/** convert from a JSON string */
 	static fromJson(source: string): MythicObject {
-		// @ts-ignore
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
-		let object: MythicObject = plainToInstance(MythicObject, JSON.parse(source));
-		if (object.removed === undefined) object.removed = false;
-		return object;
+		try {
+			// @ts-ignore
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
+			let object: MythicObject = plainToInstance(MythicObject, JSON.parse(source));
+			if (object.removed === undefined) object.removed = false;
+			return object;
+		} catch (error) {
+			console.error("error parsing object: ", error, "reading:", shorten(source));
+			throw error;
+		}
 	}
 	/** convert to a JSON string */
 	toJson(): string {
@@ -44,33 +49,40 @@ export class MythicObject {
 	}
 	/** create HTML for display */
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext, tables: Tables): void {
-		const object: MythicObject = MythicObject.fromJson(source);
-		const meta = tables.meta(object.kind);
-		const tfs: string = (meta === undefined ? "unknown" : (ThingFamily[meta.family] ?? 'unknown')).toLowerCase();
-		let cl = `mythic-object mythic-${object.kind} mythic-${tfs}` + ((object.removed ?? false) ? ' mythic-removed' : '');
-		let divElt: HTMLDivElement = el.createDiv({ cls: cl });
-		divElt.createSpan({ text: `(${object.kind})` });
-		if (object.marker !== undefined && object.marker != "")
-			divElt.createEl('i', ` ${object.marker}`);
-		if (object.name !== "")
-			divElt.createSpan({ text: ` ${object.name}` });
-		divElt.createSpan({ text: `: ${object.description.trim()}` });
-		if (object.maxProgress > 0)
-			divElt.createSpan({ text: ` progress ${object.progress}/${object.maxProgress}` });
-		if (object.needsFlashpoint)
-			divElt.createEl('b', { text: " needs flashpoint" });
-		if (meta !== undefined && meta.family == ThingFamily.OracleResponse) {
-			const oracle = tables.oracles.get(object.kind);
-			if (oracle === undefined) {
-				divElt.createDiv({ text: `oracle ${object.kind} not found`, cls: 'mythic-error' });
-			} else {
-				const entry = oracle.entries.resolve(object.diceThrow);
-				divElt.createEl('b', { text: ` (${meta.displayName} oracle) ${entry.text}` });
+		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-adventure' });
+		try {
+			const object: MythicObject = MythicObject.fromJson(source);
+			const meta = tables.meta(object.kind);
+			const tfs: string = (meta === undefined ? "unknown" : (ThingFamily[meta.family] ?? 'unknown')).toLowerCase();
+			let cl = `mythic-object mythic-${object.kind} mythic-${tfs}` + ((object.removed ?? false) ? ' mythic-removed' : '');
+			const tag = object.selection ? " selection" : "";
+			divElt.createSpan({ text: `(${object.kind}${tag})` });
+			if (object.marker !== undefined && object.marker != "")
+				divElt.createEl('i', ` ${object.marker}`);
+			if (object.name !== "")
+				divElt.createSpan({ text: ` ${object.name}` });
+			divElt.createSpan({ text: `: ${object.description.trim()}` });
+			if (object.maxProgress > 0)
+				divElt.createSpan({ text: ` progress ${object.progress}/${object.maxProgress}` });
+			if (object.needsFlashpoint)
+				divElt.createEl('b', { text: " needs flashpoint" });
+			if (meta !== undefined && meta.family == ThingFamily.OracleResponse) {
+				const oracle = tables.oracles.get(object.kind);
+				if (oracle === undefined) {
+					divElt.createDiv({ text: `oracle ${object.kind} not found`, cls: 'mythic-error' });
+				} else {
+					const entry = oracle.entries.resolve(object.diceThrow);
+					divElt.createSpan({ text: ` (${meta.displayName} oracle) ` });
+					divElt.createEl('b', { text: ` ${entry.text}` });
+				}
 			}
-		}
-		if (object.selection) {
-			divElt.createSpan({ text: " Selected: " });
-			divElt.createEl('b', { text: ` ${object.selected}` });
+			if (object.selection) {
+				divElt.createSpan({ text: " Selected: " });
+				divElt.createEl('b', { text: ` ${object.selected}` });
+			}
+		} catch (error) {
+			console.error("error displaying object: ", error, "reading:", shorten(source));
+			divElt.createSpan({ text: `error in displaying object: ${error as Error}`, cls: 'mythic-error' });
 		}
 	}
 	newFlashpoint(): boolean {
@@ -119,7 +131,7 @@ export class MythicObjectModal extends Modal {
 			});
 
 		if (kind.family == ThingFamily.ThingObject && kind.progress) {
-			new Setting(this.contentEl).setName('Max progress').setDesc("Leave as zero if this is not a progress thread").addText((text) => {
+			new Setting(this.contentEl).setName('Max progress').setDesc("Number of steps in a progress thread").addText((text) => {
 				text.setValue(this.object.maxProgress.toString());;
 				text.onChange((value) => {
 					let p = parseInt(value);
@@ -165,9 +177,9 @@ export class MythicObjectModal extends Modal {
 			case ThingFamily.OracleResponse:
 				this.saveButton(buttonSetting, app, plugin, object, block, tables, kind, true, false, false);
 				break;
-			case ThingFamily.ThingChoice:
-				// TODO ThingChoice?
-				break;
+			// case ThingFamily.ThingChoice:
+			// 	// TODO ThingChoice?
+			// 	break;
 			default:
 		}
 		this.saveButton(buttonSetting, app, plugin, object, block, tables, kind, false, false, object.selection);
@@ -198,9 +210,9 @@ export class MythicObjectModal extends Modal {
 									object.diceThrow = oracle.entries.throwDiceStandardised();
 							}
 								break;
-							case ThingFamily.ThingChoice:
-								// TODO ThingChoice?
-								break;
+							// case ThingFamily.ThingChoice:
+							// 	// TODO ThingChoice?
+							// 	break;
 						}
 					}
 					if (bump) {

@@ -27,7 +27,7 @@ export function assertDefined<T>(value: T | undefined | null): asserts value is 
 /** displays a trace message if required */
 export function mTrace(narr: string, ...vals: any[]): void {
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
-	console.log("mythic", `${narr}: `, ...vals);
+	// console.log("mythic", `${narr}: `, ...vals); 
 }
 /** shorten a string. */
 export function shorten(s: string): string {
@@ -106,7 +106,8 @@ export default class MythicSupportPlugin extends Plugin {
 								cursor.line,
 								'question',
 							);
-							new QuestionModal(this.app, question, block, this.tables, this).open();
+							assertDefined(this.metadata);
+							new QuestionModal(this.app, question, block, this.tables, this, this.metadata).open();
 							break;
 						}
 						case MythicObjectKind.MythicObject: {
@@ -189,7 +190,8 @@ export default class MythicSupportPlugin extends Plugin {
 						case Question.TAG:
 							{
 								let question = Question.fromJson(source);
-								new QuestionModal(this.app, question, block, this.tables, this).open();
+								assertDefined(this.metadata);
+								new QuestionModal(this.app, question, block, this.tables, this, this.metadata).open();
 							}
 							break;
 						case Dice.TAG:
@@ -231,7 +233,7 @@ export default class MythicSupportPlugin extends Plugin {
 		this.registerMarkdownCodeBlockProcessor(
 			Scene.TAG,
 			(source, el, ctx) => {
-				mTrace('main', "generation scene html");
+				// mTrace('main', "generation scene html");
 				Scene.toHtml(source, el, ctx, this.tables);
 			},
 		);
@@ -262,7 +264,7 @@ export default class MythicSupportPlugin extends Plugin {
 		this.registerMarkdownCodeBlockProcessor(
 			Adventure.TAG,
 			(source, el, ctx) => {
-				mTrace('main', "generation adventure html");
+				// mTrace('main', "generation adventure html");
 				Adventure.toHtml(source, el, ctx, this.metadata, this.tables);
 			},
 		);

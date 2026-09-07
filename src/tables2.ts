@@ -1,6 +1,6 @@
 import { parse, ParseResult } from 'kdljs';
 import { Vault } from "obsidian";
-import { Type, plainToInstance, instanceToPlain } from 'class-transformer';
+import { Type, plainToInstance, instanceToPlain, Expose } from 'class-transformer';
 import { QuestionOdds } from './question.js';
 import { assertDefined, mTrace } from './main.js';
 import { DiceRandom } from './dice.js';
@@ -67,11 +67,11 @@ class CheckTable {
 	}
 	/** This selects an entry from a table, given a random number. The table must be in increasing order. The tables can be weighted (not all entries have the same probability). `value` is the dice throw and should be 'standardised', meaning that the lowest value should be 1. If the value is too low, the first entry is returned; if too high, the last. */
 	resolve(value: number): CheckTableEntry {
-		mTrace("resolving", value);
+		// mTrace("resolving", value);
 		for (let entry of this.entries) {
 			// mTrace("try", entry.max);
 			if (value <= entry.max) {
-				mTrace('tables', `resolving ${value}, found `, entry);
+				// mTrace('tables', `resolving ${value}, found `, entry);
 				return entry;
 			}
 		}
@@ -82,7 +82,7 @@ class CheckTable {
 	}
 }
 /** which kind of object */
-export enum ThingFamily { ThingObject, ThingChoice, OracleResponse, SimpleText };
+export enum ThingFamily { ThingObject, OracleResponse, SimpleText };
 /** describes some objects, including how to randomise them. */
 export class MythicObjectMeta {
 	family: ThingFamily = ThingFamily.ThingObject;
@@ -126,13 +126,13 @@ export class Oracle {
 }
 /** Tables read from a configuration file. */
 export class Tables {
-	questionOdds: Array<QuestionOdds>;
-	fateCheckAnswers: CheckTable;
+	@Expose() questionOdds: Array<QuestionOdds>;
+	@Expose() fateCheckAnswers: CheckTable;
 	@Type(() => Array<string>)
-	eventFocus: CheckTable;
-	oracles: Map<string, Oracle>;
-	simples: Map<string, MythicObjectMeta>;
-	objectKinds: Map<string, MythicObjectMeta>;
+	@Expose() eventFocus: CheckTable;
+	@Expose() oracles: Map<string, Oracle>;
+	@Expose() simples: Map<string, MythicObjectMeta>;
+	@Expose() objectKinds: Map<string, MythicObjectMeta>;
 	// meaning: Map<string, MeaningTable>;
 	result: string = ""; // non-empty means error
 	constructor() {
@@ -147,7 +147,7 @@ export class Tables {
 	}
 	/** convert from a JSON string */
 	static async fromJson(source: string): Promise<Tables> {
-		return plainToInstance(Tables, JSON.parse(source));
+		return plainToInstance(Tables, JSON.parse(source), { excludeExtraneousValues: true });
 	}
 	/** this finds the 'meta' for this object kind; it can return undefined if the tables are not loaded yet */
 	meta(objectKind: string): MythicObjectMeta | undefined {
@@ -157,8 +157,7 @@ export class Tables {
 		if (oracle !== undefined) return oracle.meta;
 		const simpleMeta = this.simples.get(objectKind);
 		if (simpleMeta === undefined) {
-			console.error(`cannot find meta for '${objectKind}'`);
-			console.warn("have", this.objectKinds.size, this.oracles.size, this.simples.size);
+			console.error(`(in tables) cannot find meta for '${objectKind}', have ${this.objectKinds.size}/${this.oracles.size}/${this.simples.size}`);
 			for (let k of this.objectKinds) { console.warn("obj", k[0]); }
 			for (let k of this.oracles) { console.warn("oracles", k[0]); }
 			for (let k of this.simples) { console.warn("simples", k[0]); }
@@ -181,8 +180,10 @@ export class KdlTables {
 		// mTrace('kdl', "start parsing KDL");
 		let table = new Tables;
 		const files = ["tables.md", "tables-extra.md"];
-		for (let file of files)
+		for (let file of files) {
+			mTrace('tables', "loading tables from", file);
 			await KdlTables.loadFromFile(file, table, vault);
+		}
 		// mTrace('kdl', "tables", table);
 		return table;
 	}
@@ -209,7 +210,7 @@ export class KdlTables {
 	/** gets all the questions from the KDL */
 	static getQuestions(children: KdlNode[], table: Tables) {
 		children.forEach((odds: KdlNode) => {
-			// mTrace('', "odds", odds);
+			// mTrace('tables', "question odds", odds);
 			const ident: string = odds.values[0] as string ?? "";
 			const props = new Map(Object.entries(odds.properties));
 			// mTrace('tables', "props is", props);
@@ -314,8 +315,8 @@ export class KdlTables {
 	static async loadFromFile(file: string, table: Tables, vault: Vault) {
 		const kdl = await KdlTables.getKdl(file, table, vault);
 		assertDefined(kdl);
-		let nodes: Array<KdlNode> = plainToInstance(Array<KdlNode>, kdl.output);
-		// mTrace('', "tables as read from KDL", nodes);
+		let nodes: Array<KdlNode> = plainToInstance(Array<KdlNode>, kdl.output,);
+		mTrace('', "tables as read from KDL", nodes);
 		nodes.forEach((node: KdlNode) => {
 			// mTrace('kdl', "node is", node);
 			switch (node.name) {
@@ -339,20 +340,20 @@ export class KdlTables {
 					break;
 				default:
 					// mTrace('', "need to implement", node.name);
-					console.error("unknown node type", node.name);
-					if (table.result == "") table.result = `invalid table entry '${node.name}'.`;
+					console.error("unknown node type", node.name, "file:", file);
+					if (table.result == "") table.result = `invalid table entry '${node.name}' in file ${file}.`;
 			}
 		});
 	}
 }
 class KdlNode {
-	name: string = "";
-	properties: Map<string, any> = new Map<string, any>();
-	values: Array<string> = [];
+	@Expose() name: string = "";
+	@Expose() properties: Map<string, any> = new Map<string, any>();
+	@Expose() values: Array<string> = [];
 	@Type(() => KdlNode)
-	children: Array<KdlNode> = [];
+	@Expose() children: Array<KdlNode> = [];
 	@Type(() => KdlTags)
-	tags: KdlTags = new KdlTags;
+	@Expose() tags: KdlTags = new KdlTags;
 }
 class KdlTags {
 	properties: Map<string, string> = new Map<string, string>();

@@ -1,8 +1,8 @@
-import { DiceRandom } from "./dice.js";
+// import { DiceRandom } from "./dice.js";
 import { assertDefined, mTrace } from "./main.js";
 import { Metadata } from "./metadata.js";
-import { Question } from "./question.js";
-import { Type, plainToInstance, instanceToPlain, Expose } from 'class-transformer';
+// import { Question } from "./question.js";
+import { Expose } from 'class-transformer';
 import { CheckTableEntry, Interpretation, Tables } from "./tables2.js";
 
 /** the focus of a random event */
@@ -14,6 +14,7 @@ export class EventFocus {
 	/** this does random things for an event focus. */
 	throwDice(tables: Tables) {
 		assertDefined(tables);
+		mTrace('eventfocus', "throwing dice for focus");
 		// const dice = new DiceRandom(tables.eventFocus.diceType ?? "2d10");
 		// this.event_focus_index = dice.throw()[0]; 
 		this.event_focus_index = tables.eventFocus.throwDiceStandardised();
@@ -22,7 +23,7 @@ export class EventFocus {
 	/** this returns the description of the random event focus. */
 	focusDescr(tables: Tables): CheckTableEntry {
 		const entry = tables.eventFocus.resolve(this.event_focus_index);
-		mTrace('randomevent', "focus resolved to", entry);
+		mTrace('eventfocus', "focus resolved to", entry);
 		return entry;
 	}
 	/** set the object (or no object, for some interpretations) */
@@ -36,7 +37,7 @@ export class EventFocus {
 			this.objectNumber = Math.floor(objects.length * this.objectNumber);
 			const obj = objects[this.objectNumber];
 			this.object = obj === undefined ? "" : obj.description ?? obj?.name;
-			mTrace('randomevent', `random object ${this.objectNumber} is ${this.object}`);
+			mTrace('eventfocus', `random object ${this.objectNumber} is ${this.object}`);
 		}
 	}
 	/** This returns a string describing the event focus. ~~This consults two separate tables for some MeaningKinds, but only one for the rest.~~ */
