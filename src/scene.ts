@@ -432,7 +432,7 @@ export class SceneModal extends Modal {
 		// assertDefined(this.meaningDropdown);
 		assertDefined(this.infoDisplay1);
 		assertDefined(this.infoDisplay2);
-		assertDefined(this.infoDispl3);
+		assertDefined(this.infoDisplay3);
 		const status = this.scene.check();
 		// mTrace("scene status checked as", SceneStatus[status], this.scene.fate === undefined ? "haven't fate," : "have fate,", narr ?? "other");
 		switch (status) {
