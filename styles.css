@@ -1,6 +1,10 @@
+body {
+    color: white;
+    background-color: black;
+}
 .mythic-scene {
     color: lightblue;
-    font-size: 120%;
+    font-size: 110%;
     display: inline;
 }
 .mythic-scene:before {
@@ -45,7 +49,7 @@
 }
 .mythic-adventure {
     color: yellow;
-    font-size: 130%;
+    font-size: 110%;
     display: inline;
 }
 .mythic-adventure:before {
@@ -90,7 +94,7 @@
 .mythic-random {
     color: magenta;
     display: inline;
-    font-size: 80%;
+    /* font-size: 90%; */
 }
 .mythic-random:before {
     content: '[';
@@ -101,7 +105,7 @@
 .mythic-fate {
     color: limegreen;
     display: inline;
-    font-size: 80%;
+    font-size: 90%;
 }
 .mythic-fate:before {
     content: '[';
@@ -109,11 +113,23 @@
 .mythic-fate:after {
     content: ']';
 }
+.mythic-focus {
+    color: skyblue;
+    display: inline;
+    font-size: 90%;
+}
+.mythic-focus:before {
+    content: '[';
+}
+.mythic-focus:after {
+    content: ']';
+}
 .mythic-removed {
     text-decoration: line-through;
 }
 .mythic-error {
     color: red;
+    background-color: white;
     font-size: 120%;
     display: inline;
 }

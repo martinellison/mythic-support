@@ -60,8 +60,9 @@ export class MythicObject {
 			if (object.marker !== undefined && object.marker != "")
 				divElt.createEl('i', ` ${object.marker}`);
 			if (object.name !== "")
-				divElt.createSpan({ text: ` ${object.name}` });
-			divElt.createSpan({ text: `: ${object.description.trim()}` });
+				divElt.createEl('b', { text: ` ${object.name}` });
+			let descElt = divElt.createEl('i');
+			descElt.createEl('b', { text: `: ${object.description.trim()}` });
 			if (object.maxProgress > 0)
 				divElt.createSpan({ text: ` progress ${object.progress}/${object.maxProgress}` });
 			if (object.needsFlashpoint)
@@ -177,9 +178,6 @@ export class MythicObjectModal extends Modal {
 			case ThingFamily.OracleResponse:
 				this.saveButton(buttonSetting, app, plugin, object, block, tables, kind, true, false, false);
 				break;
-			// case ThingFamily.ThingChoice:
-			// 	// TODO ThingChoice?
-			// 	break;
 			default:
 		}
 		this.saveButton(buttonSetting, app, plugin, object, block, tables, kind, false, false, object.selection);
@@ -210,9 +208,6 @@ export class MythicObjectModal extends Modal {
 									object.diceThrow = oracle.entries.throwDiceStandardised();
 							}
 								break;
-							// case ThingFamily.ThingChoice:
-							// 	// TODO ThingChoice?
-							// 	break;
 						}
 					}
 					if (bump) {

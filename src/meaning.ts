@@ -10,7 +10,8 @@ export class Meaning {
 	@Expose() description: string = "";
 	@Expose() meaningKind: string = 'action1';
 	@Expose() randoms: Array<number> = [0, 0];
-	@Expose() result: string = "";
+	@Expose() result1: string = "";
+	@Expose() result2: string = "";
 	static readonly TAG = 'mythic-meaning';
 	constructor(meaningKind: string = 'action1') {
 		this.meaningKind = meaningKind;
@@ -40,8 +41,11 @@ export class Meaning {
 		try {
 			mTrace('meaning', "rendering meaning", source);
 			const meaning: Meaning = Meaning.fromJson(source);
-			divElt.createSpan({ text: `(meaning) ${meaning.description}:` });
-			divElt.createEl('b', { text: ` ${meaning.result}` });
+			divElt.createSpan({ text: `(meaning) ` });
+			let descElt = divElt.createEl('i');
+			descElt.createEl('b', { text: `${meaning.description}:` });
+			divElt.createSpan({ text: ` ${meaning.result1}` });
+			divElt.createEl('b', { text: ` ${meaning.result2}` });
 		} catch (error) {
 			const msg = `error when parsing meaning: ${error as Error}`;
 			console.error(msg);
@@ -57,13 +61,15 @@ export class Meaning {
 	explain(tables: Tables) {
 		const tab = tables.oracles.get(this.meaningKind);
 		if (tab === undefined) {
-			this.result = `unknown ${this.meaningKind}`;
+			this.result1 = `unknown ${this.meaningKind}`;
+			this.result2 = "";
 			console.warn("cannot explain", this.meaningKind);
 			return;
 		}
 		const meanings = Meaning.meanings(tables, this.randoms, this.meaningKind);
-		this.result = `(${tab.meta.displayName ?? tab.meta.description}): ${meanings}`;
-		mTrace('meaning', `${this.meaningKind} meaning explained as ${this.result}`);
+		this.result1 = `(${tab.meta.displayName ?? tab.meta.description})`;
+		this.result2 = `${meanings}`;
+		mTrace('meaning', `${this.meaningKind} meaning explained as ${this.result1}: ${this.result2}`);
 	}
 	/** this selects a meaning. */
 	static meaning1(tables: Tables, meaningKind: string): string {
@@ -168,6 +174,7 @@ export class MeaningModal extends Modal {
 				dropDownResult = dropDown;
 				let tabKind, tab;
 				for ([tabKind, tab] of tables.oracles) {
+					mTrace('meaning', "drop", tab.meta.noAlt, tab.meta.displayName);
 					if (!tab.meta.noAlt)
 						dropDown.addOption(tabKind, tab.meta.displayName);
 				}

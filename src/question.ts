@@ -1,11 +1,11 @@
 import { Type, plainToInstance, instanceToPlain, Expose } from 'class-transformer';
-import { Modal, App, Setting, MarkdownPostProcessorContext, } from 'obsidian';
+import { Modal, App, Setting, MarkdownPostProcessorContext, DropdownComponent, DisplayValueComponent, } from 'obsidian';
 import { CodeBlock } from './codeblock.js';
 import { Tables } from './tables2.js';
 import { EventFocus, } from './eventfocus.js';
 import MythicSupportPlugin, { mTrace, shorten } from './main.js';
 import { Metadata } from './metadata.js';
-import { Meaning } from './meaning.js';
+import { Meaning, MeaningModal } from './meaning.js';
 import { ChaosProvider, FateData, FateDataModal } from './fatedata.js';
 const NONIDENT = /[^a-zA-Z0-9]+/g;
 export class QuestionOdds {
@@ -31,6 +31,7 @@ export class Question implements ChaosProvider {
 	@Type(() => FateData)
 	@Expose() fateData: FateData = new FateData(this);
 	@Expose() chaosFactor: number = 5;
+	@Expose() hasRandom: boolean = false;
 	@Expose() meaningKind: string = "action1";
 	@Type(() => EventFocus)
 	@Expose() focus?: EventFocus;
@@ -83,6 +84,27 @@ export class Question implements ChaosProvider {
 	toJson(): string {
 		return JSON.stringify(instanceToPlain(this));
 	}
+	/** describe the scene in plain text */
+	toText(tables: Tables): string {
+		let texts = new Array<string>; try {
+			// if (this.fateData !== undefined)
+			// 	texts.push(this.fateData.toText(tables));
+			if (this.hasRandom) {
+				texts.push("Random event ");
+				if (this.focus !== undefined) {
+					texts.push(this.focus.toText(tables));
+				}
+				if (this.meaning !== undefined) {
+					texts.push(this.meaning.result2);
+				}
+			}
+		} catch (error) {
+			const msg = `error in question: ${error as Error}`;
+			console.error(msg);
+			texts.push(msg);
+		}
+		return texts.join(" ");
+	}
 	/** create HTML for display */
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext, tables: Tables) {
 		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-question' });
@@ -92,11 +114,15 @@ export class Question implements ChaosProvider {
 			if (question.fateData !== undefined)
 				question.fateData.toHtml(divElt, tables);
 
-			if (question.focus !== undefined) {
-				divElt.createDiv({ text: question.focus.toText(tables), cls: 'mythic-random' });
-			}
-			if (question.meaning !== undefined) {
-				divElt.createDiv({ text: question.meaning.result, cls: 'mythic-random' });
+			if (question.hasRandom) {
+				divElt.createSpan({ text: "Random event ", cls: 'mythic-random' });
+				if (question.focus !== undefined) {
+					question.focus.toHtml(divElt, tables);
+				}
+				if (question.meaning !== undefined) {
+					divElt.createDiv({ text: question.meaning.result1, cls: 'mythic-random' });
+					divElt.createEl('b', { text: question.meaning.result2, cls: 'mythic-random' });
+				}
 			}
 		} catch (error) {
 			const msg = `error when parsing question: ${error as Error}`;
@@ -135,6 +161,7 @@ export class QuestionModal extends Modal {
 	question: Question;
 	hasRandom: boolean = false;
 	meaningSetting?: Setting;
+	infoDisplay1?: DisplayValueComponent;
 	// questionDataModal: QuestionDataModal;
 	constructor(app: App, question: Question, block: CodeBlock, tables: Tables, plugin: MythicSupportPlugin, metadata: Metadata) {
 		super(app);
@@ -146,26 +173,37 @@ export class QuestionModal extends Modal {
 					this.question.chaosFactor = value;
 				});
 			});
-		let questionDataModal = new FateDataModal(this.contentEl, tables, (isRandom) => {
+		let fateDataModal = new FateDataModal(this.contentEl, tables, (isRandom) => {
 			this.question.makeRandomEvent(isRandom, tables, metadata);
-			this.setRandom(isRandom);
+			this.setRandom(isRandom, tables);
 			/* TODO iff is random, create a random event i.e. focus and question*/
 		});
-		questionDataModal.setVisibility(true, "Q");
-		questionDataModal.setData(question.fateData, tables);
-		this.meaningSetting = new Setting(this.contentEl).setName('Meaning').addDropdown((dropDown) => {
-			for (let meanTab of tables.oracles) {
-				const ident = meanTab[0];
-				if (!meanTab[1].meta.noAlt)
-					dropDown.addOption(ident, meanTab[1].meta.displayName);
-			}
-			dropDown.setValue(this.question.meaning?.meaningKind ?? "action1");
-			dropDown.onChange((value) => {
+		fateDataModal.setVisibility(true, "Q");
+		fateDataModal.setData(question.fateData, tables);
+		// this.meaningSetting = new Setting(this.contentEl).setName('Meaning').addDropdown((dropDown) => {
+		// 	for (let meanTab of tables.oracles) {
+		// 		const ident = meanTab[0];
+		// 		if (!meanTab[1].meta.noAlt)
+		// 			dropDown.addOption(ident, meanTab[1].meta.displayName);
+		// 	}
+		// 	dropDown.setValue(this.question.meaning?.meaningKind ?? "action1");
+		// 	dropDown.onChange((value) => {
+		// 		if (this.question.meaning !== undefined)
+		// 			this.question.meaning.meaningKind = value;
+		// 		this.question.meaningKind = value;
+		// 		this.question.makeRandomEvent(this.hasRandom, tables, metadata);
+		// 	});
+		// });
+		let dc: DropdownComponent | undefined;
+		MeaningModal.makeMeaning(this.contentEl, dc, tables,
+			(value) => {
 				if (this.question.meaning !== undefined)
 					this.question.meaning.meaningKind = value;
 				this.question.meaningKind = value;
 				this.question.makeRandomEvent(this.hasRandom, tables, metadata);
-			});
+			}, this.question.meaning);
+		new Setting(this.contentEl).addDisplayValue(disp => {
+			this.infoDisplay1 = disp;
 		});
 		new Setting(this.contentEl)
 			.addButton((btn) => btn
@@ -185,11 +223,14 @@ export class QuestionModal extends Modal {
 					if (editor !== undefined)
 						block.replaceContents(Question.TAG, json, editor);
 				}));
+		this.setRandom(this.hasRandom, tables);
 	}
-	setRandom(hasRandom: boolean) {
+	setRandom(hasRandom: boolean, tables: Tables) {
+		this.question.hasRandom = hasRandom;
 		this.hasRandom = hasRandom;
 		this.meaningSetting?.setVisibility(hasRandom);
-
+		if (this.infoDisplay1 !== undefined)
+			this.infoDisplay1.setValue(this.question.toText(tables));
 	}
 	static buttonText(kind: QuestionButtonKind): string {
 		switch (kind) {

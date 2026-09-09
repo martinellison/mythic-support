@@ -26,8 +26,8 @@ export function assertDefined<T>(value: T | undefined | null): asserts value is 
 }
 /** displays a trace message if required */
 export function mTrace(narr: string, ...vals: any[]): void {
-	// // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
-	// console.log("mythic", `${narr}: `, ...vals); 
+	// 	// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
+	// 	console.log("mythic", `${narr}: `, ...vals);
 }
 /** shorten a string. */
 export function shorten(s: string): string {
@@ -49,242 +49,266 @@ export default class MythicSupportPlugin extends Plugin {
 		await Promise.resolve();
 	}
 	async onCreate() {
-		mTrace('main', "starting plugin create");
-		await this.metadata.load(this.app.metadataCache, this.app.vault, this);
-		await this.metadata.scanAllFiles(this.app.metadataCache, this.app.vault, this);
-		mTrace('main', "plugin create ended");
+		try {
+			mTrace('main', "starting plugin create");
+			await this.metadata.load(this.app.metadataCache, this.app.vault, this);
+			await this.metadata.scanAllFiles(this.app.metadataCache, this.app.vault, this);
+			mTrace('main', "plugin create ended");
+		} catch (error) {
+			const msg = `error on create: ${error as Error}`;
+			console.error(msg);
+		}
 	}
-
 	async onload() {
-		mTrace('main', 'loading MythicSupportPlugin');
-		this.app.workspace.onLayoutReady(async () => {
-			mTrace('main', "layout ready");
-			await this.onCreate();
-			this.tables = await KdlTables.load(this.app.vault);
-			mTrace("plugin", "tables loaded", this.tables);
-			if (this.tables.result.trim() != "") {
-				console.error("could not load KDL:", this.tables.result);
-				await MythicSupportPlugin.displayMessage(this.app, `${this.tables.result}`);
-			}
-		});
-		await this.loadSettings();
-
-		/** Command to create a new Mythic object */
-		this.addCommand({
-			id: 'mythic-create',
-			name: 'Create a Mythic object',
-			editorCheckCallback: (
-				checking: boolean,
-				editor: Editor,
-				view: MarkdownView | MarkdownFileInfo,
-			): boolean => {
-				if (checking) {
-					return (
-						this.app.workspace.getActiveViewOfType(MarkdownView) !=
-						null
-					);
+		try {
+			mTrace('main', 'loading MythicSupportPlugin');
+			this.app.workspace.onLayoutReady(async () => {
+				mTrace('main', "layout ready");
+				await this.onCreate();
+				this.tables = await KdlTables.load(this.app.vault);
+				mTrace("plugin", "tables loaded", this.tables);
+				if (this.tables.result.trim() != "") {
+					console.error("could not load KDL:", this.tables.result);
+					await MythicSupportPlugin.displayMessage(this.app, `${this.tables.result}`);
 				}
-				// LATER check whether this block is inside the adventure folder
-				// LATER also, refactor the calling sequence
-				new CreateModal(this.app, this.tables, (kind: MythicObjectKind, objectKind: string, selection: boolean) => {
-					let cursor: EditorPosition = editor.getCursor();
-					switch (kind) {
-						case MythicObjectKind.Scene: {
-							let scene = new Scene();
-							let block = new CodeBlock(
-								cursor.line,
-								cursor.line,
-								'scene',
-							);
-							new SceneModal(true, this.app, scene, block, this.tables, this).open();
-							break;
-						}
-						case MythicObjectKind.Question: {
-							let question = new Question('');
-							let block = new CodeBlock(
-								cursor.line,
-								cursor.line,
-								'question',
-							);
-							assertDefined(this.metadata);
-							new QuestionModal(this.app, question, block, this.tables, this, this.metadata).open();
-							break;
-						}
-						case MythicObjectKind.MythicObject: {
-							const meta = this.tables.meta(objectKind);
-							mTrace('main', "meta for", objectKind);
-							assertDefined(meta);
-							let object = new MythicObject(objectKind, "", "", "", selection);
-							let block = new CodeBlock(
-								cursor.line,
-								cursor.line,
-								selection ? 'selection' : 'object',
-							);
-							new MythicObjectModal(this.app, this, object, block, this.tables, meta).open();
-							break;
-						}
-						case MythicObjectKind.Dice: {
-							let dice = new Dice('');
-							let block = new CodeBlock(
-								cursor.line,
-								cursor.line,
-								'dice',
-							);
-							new DiceModal(this.app, dice, block).open();
-							break;
-						}
-						case MythicObjectKind.Meaning: {
-							let meaning = new Meaning('action1');
-							let block = new CodeBlock(
-								cursor.line,
-								cursor.line,
-								'meaning',
-							);
-							new MeaningModal(this.app, meaning, block, this.tables).open();
-							break;
-						}
-						case MythicObjectKind.Adventure: {
-							let adventure = new Adventure('');
-							let block = new CodeBlock(
-								cursor.line,
-								cursor.line,
-								'adventure',
-							);
-							new AdventureModal(this.app, this, adventure, block).open();
-							break;
-						}
-						default:
-							console.error('unknown object kind', kind);
+			});
+			await this.loadSettings();
+
+			/** Command to create a new Mythic object */
+			this.addCommand({
+				id: 'mythic-create',
+				name: 'Create a Mythic object',
+				editorCheckCallback: (
+					checking: boolean,
+					editor: Editor,
+					view: MarkdownView | MarkdownFileInfo,
+				): boolean => {
+					if (checking) {
+						return (
+							this.app.workspace.getActiveViewOfType(MarkdownView) !=
+							null
+						);
 					}
-				}).open();
-				return true;
-			},
-		});
-
-		this.addCommand({
-			id: 'mythic-edit',
-			name: 'Edit selected',
-			editorCheckCallback: (
-				checking: boolean,
-				editor: Editor,
-				view: MarkdownView | MarkdownFileInfo,
-			): boolean => {
-				if (checking) {
-					return (
-						this.app.workspace.getActiveViewOfType(MarkdownView) !=
-						null
-					);
-				}
-				// LATER check whether this block is inside the adventure folder
-				let block = CodeBlock.get(editor);
-				if (block.is_block) {
-					const source = block.contents(editor);
-					switch (block.kind) {
-						case Scene.TAG:
-							{
-								let scene = Scene.fromJson(source);
-								scene.useSceneType();
-								new SceneModal(false, this.app, scene, block, this.tables, this).open();
+					// LATER check whether this block is inside the adventure folder
+					// LATER also, refactor the calling sequence
+					new CreateModal(this.app, this.tables, (kind: MythicObjectKind, objectKind: string, selection: boolean) => {
+						let cursor: EditorPosition = editor.getCursor();
+						switch (kind) {
+							case MythicObjectKind.Scene: {
+								let scene = new Scene();
+								let block = new CodeBlock(
+									cursor.line,
+									cursor.line,
+									'scene',
+								);
+								new SceneModal(true, this.app, scene, block, this.tables, this).open();
+								break;
 							}
-							break;
-						case Question.TAG:
-							{
-								let question = Question.fromJson(source);
+							case MythicObjectKind.Question: {
+								let question = new Question('');
+								let block = new CodeBlock(
+									cursor.line,
+									cursor.line,
+									'question',
+								);
 								assertDefined(this.metadata);
 								new QuestionModal(this.app, question, block, this.tables, this, this.metadata).open();
+								break;
 							}
-							break;
-						case Dice.TAG:
-							{
-								let dice = Dice.fromJson(source);
-								new DiceModal(this.app, dice, block).open();
-							}
-							break;
-						case Meaning.TAG:
-							{
-								let meaning = Meaning.fromJson(source);
-								new MeaningModal(this.app, meaning, block, this.tables).open();
-							}
-							break;
-						case MythicObject.TAG:
-							{
-								let object = MythicObject.fromJson(source);
-								const meta = this.tables.meta(object.kind);
+							case MythicObjectKind.MythicObject: {
+								const meta = this.tables.meta(objectKind);
+								mTrace('main', "meta for", objectKind);
 								assertDefined(meta);
+								let object = new MythicObject(objectKind, "", "", "", selection);
+								let block = new CodeBlock(
+									cursor.line,
+									cursor.line,
+									selection ? 'selection' : 'object',
+								);
 								new MythicObjectModal(this.app, this, object, block, this.tables, meta).open();
+								break;
 							}
-							break;
-						case Adventure.TAG:
-							{
-								let adventure = Adventure.fromJson(source);
+							case MythicObjectKind.Dice: {
+								let dice = new Dice('');
+								let block = new CodeBlock(
+									cursor.line,
+									cursor.line,
+									'dice',
+								);
+								new DiceModal(this.app, dice, block).open();
+								break;
+							}
+							case MythicObjectKind.Meaning: {
+								let meaning = new Meaning('action1');
+								let block = new CodeBlock(
+									cursor.line,
+									cursor.line,
+									'meaning',
+								);
+								new MeaningModal(this.app, meaning, block, this.tables).open();
+								break;
+							}
+							case MythicObjectKind.Adventure: {
+								let adventure = new Adventure('');
+								let block = new CodeBlock(
+									cursor.line,
+									cursor.line,
+									'adventure',
+								);
 								new AdventureModal(this.app, this, adventure, block).open();
+								break;
 							}
-							break;
-						default:
-							console.warn("unknown block type '%s'", block.kind);
-					}
-				} else {
-					console.warn('not a block');
-				}
-				return true;
-			},
-		});
+							default:
+								console.error('unknown object kind', kind);
+						}
+					}).open();
+					return true;
+				},
+			});
 
-		this.registerMarkdownCodeBlockProcessor(
-			Scene.TAG,
-			(source, el, ctx) => {
-				// mTrace('main', "generation scene html");
-				Scene.toHtml(source, el, ctx, this.tables);
-			},
-		);
-		this.registerMarkdownCodeBlockProcessor(
-			Question.TAG,
-			(source, el, ctx) => {
-				Question.toHtml(source, el, ctx, this.tables);
-			},
-		);
-		this.registerMarkdownCodeBlockProcessor(
-			Dice.TAG,
-			(source, el, ctx) => {
-				Dice.toHtml(source, el, ctx);
-			},
-		);
-		this.registerMarkdownCodeBlockProcessor(
-			Meaning.TAG,
-			(source, el, ctx) => {
-				Meaning.toHtml(source, el, ctx);
-			},
-		);
-		this.registerMarkdownCodeBlockProcessor(
-			MythicObject.TAG,
-			(source, el, ctx,) => {
-				MythicObject.toHtml(source, el, ctx, this.tables);
-			},
-		);
-		this.registerMarkdownCodeBlockProcessor(
-			Adventure.TAG,
-			(source, el, ctx) => {
-				// mTrace('main', "generation adventure html");
-				Adventure.toHtml(source, el, ctx, this.metadata, this.tables);
-			},
-		);
-		this.addSettingTab(new MythicSettingTab(this.app, this));
-		mTrace('main', "MythicSupportPlugin plugin loaded");
+			this.addCommand({
+				id: 'mythic-edit',
+				name: 'Edit selected',
+				editorCheckCallback: (
+					checking: boolean,
+					editor: Editor,
+					view: MarkdownView | MarkdownFileInfo,
+				): boolean => {
+					if (checking) {
+						return (
+							this.app.workspace.getActiveViewOfType(MarkdownView) !=
+							null
+						);
+					}
+					try {
+						// LATER check whether this block is inside the adventure folder
+						let block = CodeBlock.get(editor);
+						if (block.is_block) {
+							const source = block.contents(editor);
+							switch (block.kind) {
+								case Scene.TAG:
+									{
+										let scene = Scene.fromJson(source);
+										scene.useSceneType();
+										new SceneModal(false, this.app, scene, block, this.tables, this).open();
+									}
+									break;
+								case Question.TAG:
+									{
+										let question = Question.fromJson(source);
+										assertDefined(this.metadata);
+										new QuestionModal(this.app, question, block, this.tables, this, this.metadata).open();
+									}
+									break;
+								case Dice.TAG:
+									{
+										let dice = Dice.fromJson(source);
+										new DiceModal(this.app, dice, block).open();
+									}
+									break;
+								case Meaning.TAG:
+									{
+										let meaning = Meaning.fromJson(source);
+										new MeaningModal(this.app, meaning, block, this.tables).open();
+									}
+									break;
+								case MythicObject.TAG:
+									{
+										let object = MythicObject.fromJson(source);
+										const meta = this.tables.meta(object.kind);
+										assertDefined(meta);
+										new MythicObjectModal(this.app, this, object, block, this.tables, meta).open();
+									}
+									break;
+								case Adventure.TAG:
+									{
+										let adventure = Adventure.fromJson(source);
+										new AdventureModal(this.app, this, adventure, block).open();
+									}
+									break;
+								default:
+									console.warn("unknown block type '%s'", block.kind);
+							}
+						} else {
+							console.warn('not a block');
+						}
+					} catch (error) {
+						const msg = `error editing block: ${error as Error}`;
+						console.error(msg);
+					}
+					return true;
+				},
+			});
+
+			this.registerMarkdownCodeBlockProcessor(
+				Scene.TAG,
+				(source, el, ctx) => {
+					// mTrace('main', "generation scene html");
+					Scene.toHtml(source, el, ctx, this.tables);
+				},
+			);
+			this.registerMarkdownCodeBlockProcessor(
+				Question.TAG,
+				(source, el, ctx) => {
+					Question.toHtml(source, el, ctx, this.tables);
+				},
+			);
+			this.registerMarkdownCodeBlockProcessor(
+				Dice.TAG,
+				(source, el, ctx) => {
+					Dice.toHtml(source, el, ctx);
+				},
+			);
+			this.registerMarkdownCodeBlockProcessor(
+				Meaning.TAG,
+				(source, el, ctx) => {
+					Meaning.toHtml(source, el, ctx);
+				},
+			);
+			this.registerMarkdownCodeBlockProcessor(
+				MythicObject.TAG,
+				(source, el, ctx,) => {
+					MythicObject.toHtml(source, el, ctx, this.tables);
+				},
+			);
+			this.registerMarkdownCodeBlockProcessor(
+				Adventure.TAG,
+				(source, el, ctx) => {
+					// mTrace('main', "generation adventure html");
+					Adventure.toHtml(source, el, ctx, this.metadata, this.tables);
+				},
+			);
+			this.addSettingTab(new MythicSettingTab(this.app, this));
+			mTrace('main', "MythicSupportPlugin plugin loaded");
+		} catch (error) {
+			const msg = `error on load: ${error as Error}`;
+			console.error(msg);
+		}
 	}
 
 	onunload() {
-		mTrace('main', 'unloading MythicSupportPlugin');
-		this.metadata.unload(this.app.metadataCache);
+		try {
+			mTrace('main', 'unloading MythicSupportPlugin');
+			this.metadata.unload(this.app.metadataCache);
+		} catch (error) {
+			const msg = `error on unload: ${error as Error}`;
+			console.error(msg);
+		}
 	}
 
 	async loadSettings() {
-		mTrace('main', "loading settings");
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			(await this.loadData()) as Partial<MythicSupportPluginSettings>,
-		);
-		mTrace('main', "settings loaded");
+		try {
+			mTrace('main', "loading settings");
+			this.settings = Object.assign(
+				{},
+				DEFAULT_SETTINGS,
+				(await this.loadData()) as Partial<MythicSupportPluginSettings>,
+			);
+			mTrace('main', "settings loaded");
+		} catch (error) {
+			const msg = `error loading settings: ${error as Error}`;
+			console.error(msg);
+		}
 	}
 
 	async saveSettings() {
@@ -322,7 +346,8 @@ export class CreateModal extends Modal {
 				dropDown.addOption(ident, kind.displayName);
 			});
 			tables.oracles.forEach((oracle, ident: string) => {
-				dropDown.addOption(ident, `${oracle.meta.displayName} oracle`);
+				if (!oracle.meta.noAlt)
+					dropDown.addOption(ident, `${oracle.meta.displayName} oracle`);
 			});
 			dropDown.onChange((value) => {
 				switch (value) {

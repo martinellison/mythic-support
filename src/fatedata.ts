@@ -37,10 +37,10 @@ export class FateData {
 	}
 	/** create HTML for display */
 	toHtml(divElt: HTMLElement, tables: Tables) {
-		let spanFate: HTMLSpanElement = divElt.createSpan({ cls: 'mythic-fate' });
+		let spanFate: HTMLSpanElement = divElt.createSpan({ text: " (fate) ", cls: 'mythic-fate' });
 		try {
-			spanFate.createSpan({ text: "(fate) " });
-			spanFate.createEl('b', { text: ` ${this.description}` });
+			let descElt = spanFate.createEl('i');
+			descElt.createEl('b', { text: ` ${this.description}` });
 			spanFate.createSpan({ text: ` ${this.dice[0]}/${this.dice[1]}` });
 			spanFate.createSpan({ text: ` odds: ${this.odds}` });
 			const mod: number = tables.getQuestionOdds(this.odds).fate_check_modifier;
@@ -54,7 +54,7 @@ export class FateData {
 		} catch (error) {
 			const msg = `error when rendering fate: ${error as Error}`;
 			console.error(msg);
-			divElt.createSpan({ text: msg, cls: 'mythic-error' });
+			spanFate.createSpan({ text: msg, cls: 'mythic-error' });
 		}
 	}
 	/** whether the fate merits creating a random event */

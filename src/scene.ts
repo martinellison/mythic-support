@@ -112,7 +112,7 @@ export class Scene implements ChaosProvider {
 	}
 	/** this scene is an alteration scene, so remove any unnecessary data. */
 	useAlterationKind() {
-		// mTrace("scene", "kind is", this.kind);
+		mTrace("scene", "kind is", this.kind);
 		switch (this.kind) {
 			case AlterationKind.Expected:
 				this.alteration = undefined;
@@ -308,7 +308,7 @@ export class Scene implements ChaosProvider {
 					case AlterationKind.Tweak: descrs.push("Tweak"); break;
 					case AlterationKind.FateQuestion: descrs.push("Fate"); break;
 					case AlterationKind.Meaning: descrs.push("Meaning: "); break;
-					case AlterationKind.Adjustment: descrs.push(`Adjustment: ${this.adjustment?.join("+")}`); break;
+					case AlterationKind.Adjustment: descrs.push(`Adjustment: ${this.adjustment?.join(" + ")}`); break;
 				}
 				break;
 			case SceneType.Interrupt:
@@ -324,9 +324,9 @@ export class Scene implements ChaosProvider {
 			descrs.push(`${this.focus.toText(tables)}`);
 		}
 		if (this.meaning !== undefined) {
-			if (this.meaning.result.trim() == "")
+			if (this.meaning.result1.trim() == "")
 				console.warn("unexplained meaning", this.meaning);
-			else desc3 = `${this.meaning.result}`;
+			else desc3 = `${this.meaning.result1}: ${this.meaning.result2}`;
 		}
 		// mTrace('scene', desc1, descrs.join(' '));
 		return [desc1, descrs.map((s) => shorten(s)).join(' '), desc3];
@@ -359,8 +359,10 @@ export class Scene implements ChaosProvider {
 							}
 							break;
 						case AlterationKind.Adjustment:
-							if (scene.adjustment !== undefined)
-								for (let adj of scene.adjustment) divElt.createSpan({ text: ` ${adj} ` });
+							if (scene.adjustment !== undefined) {
+								const adjs = scene.adjustment.join(", ");
+								divElt.createSpan({ text: ` [ ${adjs} ] ` });
+							}
 							break;
 						case AlterationKind.Expected:
 							divElt.createSpan({ text: " select an appropriate alteration kind!" });
@@ -393,10 +395,12 @@ export class Scene implements ChaosProvider {
 				scene.fate.toHtml(divElt, tables);
 			}
 			if (scene.focus !== undefined) {
-				el.createDiv({ text: ` ${scene.focus.toText(tables)} `, cls: 'mythic-random' });
+				scene.focus.toHtml(divElt, tables);
+				// el.createDiv({ text: ` ${scene.focus.toText(tables)} `, cls: 'mythic-random' });
 			}
 			if (scene.meaning !== undefined) {
-				el.createDiv({ text: ` ${scene.meaning.result} `, cls: 'mythic-random' });
+				el.createDiv({ text: ` ${scene.meaning.result1} `, cls: 'mythic-random' });
+				el.createEl('b', { text: ` ${scene.meaning.result2} `, cls: 'mythic-random' });
 			}
 		} catch (error) {
 			const msg = `error when parsing scene: ${error as Error}`;
@@ -428,7 +432,7 @@ export class SceneModal extends Modal {
 		// assertDefined(this.meaningDropdown);
 		assertDefined(this.infoDisplay1);
 		assertDefined(this.infoDisplay2);
-		assertDefined(this.infoDisplay3);
+		assertDefined(this.infoDispl3);
 		const status = this.scene.check();
 		// mTrace("scene status checked as", SceneStatus[status], this.scene.fate === undefined ? "haven't fate," : "have fate,", narr ?? "other");
 		switch (status) {
@@ -567,7 +571,7 @@ export class SceneModal extends Modal {
 				});
 				dropDown.setValue(this.scene.kind);
 				dropDown.onChange((value) => {
-					// mTrace('', "alteration kind", value,);
+					mTrace('', "alteration kind", value,);
 					this.scene.setAlterationKind(value as AlterationKind);
 					this.scene.useAlterationKind();
 					// assertDefined(this.fateDataModal);
@@ -579,6 +583,8 @@ export class SceneModal extends Modal {
 						this.fateDataModal.setVisibility(true);
 						this.fateDataModal.setData(this.scene.fate, tables);
 					}
+					if (this.scene.kind == AlterationKind.Adjustment && this.scene.adjustment !== undefined && this.scene.adjustment?.length == 0)
+						this.scene.addSceneAdjustment();
 					this.checkAndShow(tables, "alter");
 				});
 			});

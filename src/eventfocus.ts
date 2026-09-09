@@ -1,9 +1,10 @@
 // import { DiceRandom } from "./dice.js";
-import { assertDefined, mTrace } from "./main.js";
+import { assertDefined, mTrace, shorten } from "./main.js";
 import { Metadata } from "./metadata.js";
 // import { Question } from "./question.js";
 import { Expose } from 'class-transformer';
 import { CheckTableEntry, Interpretation, Tables } from "./tables2.js";
+import { MarkdownPostProcessorContext } from "obsidian";
 
 /** the focus of a random event */
 export class EventFocus {
@@ -59,4 +60,26 @@ export class EventFocus {
 		parts.push(focus_descr.text);
 		return parts.join(' ');
 	}
-} 
+	/** create HTML for display */
+	toHtml(divElt: HTMLElement, tables: Tables): void {
+		let spanFocus: HTMLSpanElement = divElt.createSpan({ text: " (focus) ", cls: 'mythic-focus' });
+		try {
+			const focus_descr = this.focusDescr(tables);
+			const meta = tables.objectKinds.get(focus_descr.interpretation);
+			if (meta !== undefined) {
+				// const kind = meta.kind;
+				spanFocus.createSpan({ text: meta.displayName });
+			}
+			if (this.object != "")
+				spanFocus.createSpan({ text: this.object });
+			switch (focus_descr.interpretation) {
+				case Interpretation.None: break;
+				case Interpretation.NewNPC: spanFocus.createSpan({ text: "Create a new NPC" }); break;
+			}
+			spanFocus.createSpan({ text: focus_descr.text });
+		} catch (error) {
+			console.error("error displaying event focus: ", error);
+			spanFocus.createSpan({ text: `error in displaying event focus: ${error as Error}`, cls: 'mythic-error' });
+		}
+	}
+}
