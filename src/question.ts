@@ -8,6 +8,7 @@ import { Metadata } from './metadata.js';
 import { Meaning, MeaningModal } from './meaning.js';
 import { ChaosProvider, FateData, FateDataModal } from './fatedata.js';
 const NONIDENT = /[^a-zA-Z0-9]+/g;
+/** fate check modifier line in a table. */
 export class QuestionOdds {
 	display: string;
 	ident: string;
@@ -133,30 +134,11 @@ export class Question implements ChaosProvider {
 	throwDice(tables: Tables, metadata: Metadata): void {
 		// for (let d = 0; d < 2; d++) this.dice[d] = mythicDice(10);// dice max is for a Fate Check
 		this.fateData.throwDice();
-		// if (this.data.dice[0] == this.data.dice[1] && (this.data.dice[0] ?? 5) <= this.
-		// chaosFactor) {
 		const isRandom = this.fateData.isRandom();
-		// if (isRandom) {
-		// 	this.focus = new EventFocus;
-		// 	this.meaning = new Meaning;
-		// 	this.meaning.meaningKind = this.meaningKind;
-		// } else {
-		// 	this.focus = undefined;
-		// 	this.meaning = undefined;
-		// }
-		// if (this.focus !== undefined) {
-		// 	this.focus.throwDice(tables);
-		// 	let ent = this.focus.focusDescr(tables);
-		// 	this.focus.defineSelectedObject(metadata, ent.interpretation);
-		// }
-		// if (this.meaning !== undefined) {
-		// 	const tabSiz = this.meaning.tableSizes(tables);
-		// 	this.meaning.throwDice(tabSiz);
-		// 	this.meaning.explain(tables);
-		// }
 		this.makeRandomEvent(isRandom, tables, metadata);
 	}
 }
+/** create a Modal for the user interface to a Question. */
 export class QuestionModal extends Modal {
 	question: Question;
 	hasRandom: boolean = false;
@@ -180,20 +162,6 @@ export class QuestionModal extends Modal {
 		});
 		fateDataModal.setVisibility(true, "Q");
 		fateDataModal.setData(question.fateData, tables);
-		// this.meaningSetting = new Setting(this.contentEl).setName('Meaning').addDropdown((dropDown) => {
-		// 	for (let meanTab of tables.oracles) {
-		// 		const ident = meanTab[0];
-		// 		if (!meanTab[1].meta.noAlt)
-		// 			dropDown.addOption(ident, meanTab[1].meta.displayName);
-		// 	}
-		// 	dropDown.setValue(this.question.meaning?.meaningKind ?? "action1");
-		// 	dropDown.onChange((value) => {
-		// 		if (this.question.meaning !== undefined)
-		// 			this.question.meaning.meaningKind = value;
-		// 		this.question.meaningKind = value;
-		// 		this.question.makeRandomEvent(this.hasRandom, tables, metadata);
-		// 	});
-		// });
 		let dc: DropdownComponent | undefined;
 		MeaningModal.makeMeaning(this.contentEl, dc, tables,
 			(value) => {
@@ -225,6 +193,7 @@ export class QuestionModal extends Modal {
 				}));
 		this.setRandom(this.hasRandom, tables);
 	}
+	/** updates the Modal to refelct whether a random event has occurred. */
 	setRandom(hasRandom: boolean, tables: Tables) {
 		this.question.hasRandom = hasRandom;
 		this.hasRandom = hasRandom;
@@ -232,6 +201,7 @@ export class QuestionModal extends Modal {
 		if (this.infoDisplay1 !== undefined)
 			this.infoDisplay1.setValue(this.question.toText(tables));
 	}
+	/** returns the text for a save button. */
 	static buttonText(kind: QuestionButtonKind): string {
 		switch (kind) {
 			case QuestionButtonKind.Save:

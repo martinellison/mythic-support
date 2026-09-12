@@ -46,7 +46,7 @@ export class Adventure {
 					let kindElt = divElt.createDiv();
 					kindElt.createEl('b', { text: `${kind.displayName}: ` });
 					// const objects = metadata.blockTable.objects(ident).map(ch => (ch.marker !== undefined && ch.marker.trim() != "" ? ` [${ch.marker}] ` : "") + ch.name);
-					const objects = metadata.blockTable.objectNames(ident);
+					const objects = metadata.blockTable.objectNames(ident, true);
 					mTrace('adventure', "for adventure", ident, kind, objects);
 					kindElt.createSpan({ text: ` ${objects.join(", ")}` });
 					mTrace('adventure', (`${ident}: found ${objects.length}`));
@@ -59,6 +59,7 @@ export class Adventure {
 		}
 	}
 }
+/** create a Modal for the user interface to an Adventure. */
 export class AdventureModal extends Modal {
 	adventure: Adventure;
 	// statusDisplay: DisplayValueComponent | undefined = undefined;

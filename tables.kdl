@@ -16,18 +16,18 @@ fate {
     - "Exceptional Yes" weight=4
 }
 eventFocus dice="2d10" {
-    - "Remote Event" weight=5 interpretation="none"
-    - "Ambigious Event" weight=5 interpretation="none"
+    - "Remote Event" weight=5
+    - "Ambigious Event" weight=5
     - "New NPC" weight=10 interpretation="newnpc"
     - "NPC Action" weight=20 interpretation="character"
     - "NPC Negative" weight=5 interpretation="character"
     - "NPC Positive" weight=5 interpretation="character"
     - "Move Toward A Thread" weight=5 interpretation="thread"
     - "Move Away From A Thread" weight=10 interpretation="thread"
-    - "Close A Thread" weight=5 interpretation="thread"
-    - "PC Negative" weight=10 interpretation="none"
-    - "PC Positive" weight=5 interpretation="none"
-    - "Current Context" weight=15 interpretation="none"
+    - "Close A Thread" weight=5 interpretation="thread" protect=#true
+    - "PC Negative" weight=10
+    - "PC Positive" weight=5
+    - "Current Context" weight=15
 }
 objects {
     - "thread" display="Thread" description="threads" progress=#true

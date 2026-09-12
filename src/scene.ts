@@ -8,6 +8,14 @@ import MythicSupportPlugin, { assertDefined, mTrace, mythicDice, shorten } from 
 import { FateData, FateDataModal as FateDataModal, ChaosProvider } from './fatedata.js';
 import { Meaning, MeaningModal } from './meaning.js';
 
+/** the different ways that a scene can be changed from the expected scene. */
+export const enum SceneType {
+	NeedDice = 'need dice',
+	Expected = 'expected',
+	Altered = 'altered',
+	Interrupt = 'interrupt',
+}
+/** the different ways that a Scene cab be *altered*. */
 export const enum AlterationKind {
 	Expected = 'expected',
 	Next = 'next',
@@ -16,12 +24,7 @@ export const enum AlterationKind {
 	Meaning = 'meaning',
 	Adjustment = 'adjustment',
 }
-export const enum SceneType {
-	NeedDice = 'need dice',
-	Expected = 'expected',
-	Altered = 'altered',
-	Interrupt = 'interrupt',
-}
+/** the different ways that a Scene cab be *adjusted*. */
 export const enum SceneAdjustment {
 	ReduceRemoveActivity = 'reduce/remove activity',
 	IncreaseActivity = 'increase activity',
@@ -32,8 +35,9 @@ export const enum SceneAdjustment {
 enum SceneStatus {
 	NeedsExpected, NeedsRandom, NeedsAlterationKind, NeedsFate, NeedsMeaning, NeedsAlteration, OK,
 };
-/**  implements an Scene block. Scene text should come after a scene block */
+/** implements an Scene block. Scene text should come after a scene block */
 export class Scene implements ChaosProvider {
+	/** get the chaos level (implements ChaosProvider). */
 	chaosValue(): number { return this.chaos; }
 	static readonly TAG = 'mythic-scene';
 	@Expose() ident: string = "";
@@ -284,6 +288,7 @@ export class Scene implements ChaosProvider {
 			throw error;
 		}
 	}
+	/** convert to JSON. */
 	toJson(): string {
 		this.useSceneType();
 		return JSON.stringify(instanceToPlain(this));
@@ -409,6 +414,7 @@ export class Scene implements ChaosProvider {
 		}
 	}
 }
+/** create a Modal for the user interface to a Scene. */
 export class SceneModal extends Modal {
 	scene: Scene;
 	action: string = "Save";
@@ -423,84 +429,6 @@ export class SceneModal extends Modal {
 	infoDisplay2?: DisplayValueComponent;
 	infoDisplay3?: DisplayValueComponent;
 	hasRandom: boolean = false;
-	checkAndShow(tables: Tables, narr?: string): void {
-		assertDefined(this.mandDisplay);
-		assertDefined(this.saveButton);
-		assertDefined(this.randomButton);
-		assertDefined(this.alterationDropdown);
-		assertDefined(this.alterationText);
-		// assertDefined(this.meaningDropdown);
-		assertDefined(this.infoDisplay1);
-		assertDefined(this.infoDisplay2);
-		assertDefined(this.infoDisplay3);
-		const status = this.scene.check();
-		// mTrace("scene status checked as", SceneStatus[status], this.scene.fate === undefined ? "haven't fate," : "have fate,", narr ?? "other");
-		switch (status) {
-			case SceneStatus.NeedsExpected:
-				this.mandDisplay.setValue("Enter the Expected scene description.");
-				break;
-			case SceneStatus.NeedsRandom:
-				this.mandDisplay.setValue("Throw the Dice.");
-				break;
-			case SceneStatus.NeedsAlterationKind:
-				this.mandDisplay.setValue("Select the Alteration Kind.");
-				break;
-			case SceneStatus.NeedsAlteration:
-				this.mandDisplay.setValue("Enter the Altered scene description.");
-				break;
-			case SceneStatus.NeedsFate:
-				this.mandDisplay.setValue("Enter the Fate Question.");
-				break;
-			case SceneStatus.NeedsMeaning:
-				this.mandDisplay.setValue("Select a Meaning Oracle.");
-				break;
-			case SceneStatus.OK:
-				this.mandDisplay.setValue(`${this.action} the Scene.`);
-				break;
-			default: console.warn("unknown scene status", status);
-
-		};
-		this.mandDisplay.setStatus(status < SceneStatus.OK ? 'warning' : null);
-		this.saveButton.setDisabled(status < SceneStatus.OK);
-		this.randomButton.setDisabled(status < SceneStatus.NeedsRandom);
-		this.alterationDropdown.setDisabled(status < SceneStatus.NeedsAlterationKind || this.scene.sceneType != SceneType.Altered);
-		const cannotEditAlteration = status < SceneStatus.NeedsAlteration || this.scene.sceneType == SceneType.Expected;
-		this.alterationText.setDisabled(cannotEditAlteration);
-		const showFate = this.scene.fate !== undefined;
-		if (status == SceneStatus.NeedsFate && this.scene.fate === undefined) console.warn("fate needed but missing!");
-		if (showFate) {
-			if (this.scene.fate === undefined) console.warn("want to show fate but missing!");
-			assertDefined(this.fateDataModal);
-			if (this.fateDataModal.fateData === undefined)
-				console.warn("fate modal has no data");
-		}
-		if (this.fateDataModal !== undefined) this.fateDataModal.setVisibility(showFate, "CAS");
-		const cannotSetMeaning = status < SceneStatus.NeedsMeaning
-			|| this.scene.sceneType == SceneType.Expected;
-		if (this.meaningDropdown !== undefined)
-			this.meaningDropdown.setDisabled(cannotSetMeaning);
-		const [d1, d2, d3] = this.scene.toText(tables);
-		this.infoDisplay1.setValue(d1);
-		this.infoDisplay2.setValue(d2);
-		this.infoDisplay3.setValue(d3);
-		mTrace('scene', cannotEditAlteration ? "no alter," : "", cannotSetMeaning ? "no mean," : "", showFate ? "see fate," : "not see fate,", this.scene.fate === undefined ? "haven't fate," : "have fate,", this.scene.meaning === undefined ? "haven't meaning," : "have meaning: " + this.scene.meaning.meaningKind, ", type:", this.scene.sceneType, ", kind:", this.scene.kind, SceneStatus[status]);
-	}
-	showAlterationKind(tables: Tables) {
-		switch (this.scene.kind) {
-			case AlterationKind.Expected: break;
-			case AlterationKind.Next: break;
-			case AlterationKind.Tweak: break;
-			case AlterationKind.FateQuestion:
-				assertDefined(this.fateDataModal);
-				if (this.fateDataModal.fateData == undefined) {
-					assertDefined(this.scene.fate);
-					this.fateDataModal.setData(this.scene.fate, tables);
-				}
-				break;
-			case AlterationKind.Meaning: break;
-			case AlterationKind.Adjustment: break;
-		}
-	}
 	constructor(creating: boolean, app: App, scene: Scene, block: CodeBlock, tables: Tables, plugin: MythicSupportPlugin) {
 		super(app);
 		this.scene = scene;
@@ -655,8 +583,89 @@ export class SceneModal extends Modal {
 			);
 		this.checkAndShow(tables, "start");
 	}
+	/** set the SceneModal after throwing the 'dice' to randomise away from the expected scene. */
 	setRandom(hasRandom: boolean) {
 		this.hasRandom = hasRandom;
 		this.scene.hasRandom = hasRandom;
+	}
+	/** display the alteration kind. */
+	showAlterationKind(tables: Tables) {
+		switch (this.scene.kind) {
+			case AlterationKind.Expected: break;
+			case AlterationKind.Next: break;
+			case AlterationKind.Tweak: break;
+			case AlterationKind.FateQuestion:
+				assertDefined(this.fateDataModal);
+				if (this.fateDataModal.fateData == undefined) {
+					assertDefined(this.scene.fate);
+					this.fateDataModal.setData(this.scene.fate, tables);
+				}
+				break;
+			case AlterationKind.Meaning: break;
+			case AlterationKind.Adjustment: break;
+		}
+	}
+	/** check the Scene and display its current status in the SceneModal. */
+	checkAndShow(tables: Tables, narr?: string): void {
+		assertDefined(this.mandDisplay);
+		assertDefined(this.saveButton);
+		assertDefined(this.randomButton);
+		assertDefined(this.alterationDropdown);
+		assertDefined(this.alterationText);
+		// assertDefined(this.meaningDropdown);
+		assertDefined(this.infoDisplay1);
+		assertDefined(this.infoDisplay2);
+		assertDefined(this.infoDisplay3);
+		const status = this.scene.check();
+		// mTrace("scene status checked as", SceneStatus[status], this.scene.fate === undefined ? "haven't fate," : "have fate,", narr ?? "other");
+		switch (status) {
+			case SceneStatus.NeedsExpected:
+				this.mandDisplay.setValue("Enter the Expected scene description.");
+				break;
+			case SceneStatus.NeedsRandom:
+				this.mandDisplay.setValue("Throw the Dice.");
+				break;
+			case SceneStatus.NeedsAlterationKind:
+				this.mandDisplay.setValue("Select the Alteration Kind.");
+				break;
+			case SceneStatus.NeedsAlteration:
+				this.mandDisplay.setValue("Enter the Altered scene description.");
+				break;
+			case SceneStatus.NeedsFate:
+				this.mandDisplay.setValue("Enter the Fate Question.");
+				break;
+			case SceneStatus.NeedsMeaning:
+				this.mandDisplay.setValue("Select a Meaning Oracle.");
+				break;
+			case SceneStatus.OK:
+				this.mandDisplay.setValue(`${this.action} the Scene.`);
+				break;
+			default: console.warn("unknown scene status", status);
+
+		};
+		this.mandDisplay.setStatus(status < SceneStatus.OK ? 'warning' : null);
+		this.saveButton.setDisabled(status < SceneStatus.OK);
+		this.randomButton.setDisabled(status < SceneStatus.NeedsRandom);
+		this.alterationDropdown.setDisabled(status < SceneStatus.NeedsAlterationKind || this.scene.sceneType != SceneType.Altered);
+		const cannotEditAlteration = status < SceneStatus.NeedsAlteration || this.scene.sceneType == SceneType.Expected;
+		this.alterationText.setDisabled(cannotEditAlteration);
+		const showFate = this.scene.fate !== undefined;
+		if (status == SceneStatus.NeedsFate && this.scene.fate === undefined) console.warn("fate needed but missing!");
+		if (showFate) {
+			if (this.scene.fate === undefined) console.warn("want to show fate but missing!");
+			assertDefined(this.fateDataModal);
+			if (this.fateDataModal.fateData === undefined)
+				console.warn("fate modal has no data");
+		}
+		if (this.fateDataModal !== undefined) this.fateDataModal.setVisibility(showFate, "CAS");
+		const cannotSetMeaning = status < SceneStatus.NeedsMeaning
+			|| this.scene.sceneType == SceneType.Expected;
+		if (this.meaningDropdown !== undefined)
+			this.meaningDropdown.setDisabled(cannotSetMeaning);
+		const [d1, d2, d3] = this.scene.toText(tables);
+		this.infoDisplay1.setValue(d1);
+		this.infoDisplay2.setValue(d2);
+		this.infoDisplay3.setValue(d3);
+		mTrace('scene', cannotEditAlteration ? "no alter," : "", cannotSetMeaning ? "no mean," : "", showFate ? "see fate," : "not see fate,", this.scene.fate === undefined ? "haven't fate," : "have fate,", this.scene.meaning === undefined ? "haven't meaning," : "have meaning: " + this.scene.meaning.meaningKind, ", type:", this.scene.sceneType, ", kind:", this.scene.kind, SceneStatus[status]);
 	}
 }

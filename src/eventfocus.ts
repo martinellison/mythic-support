@@ -16,20 +16,18 @@ export class EventFocus {
 	throwDice(tables: Tables) {
 		assertDefined(tables);
 		mTrace('eventfocus', "throwing dice for focus");
-		// const dice = new DiceRandom(tables.eventFocus.diceType ?? "2d10");
-		// this.event_focus_index = dice.throw()[0]; 
-		this.event_focus_index = tables.eventFocus.throwDiceStandardised();
+		this.event_focus_index = tables.eventFocus.throwDiceStandardised(false /* TODO */);
 		this.objectNumber = Math.floor(Math.random() * 100.0) / 100.0;
 	}
 	/** this returns the description of the random event focus. */
 	focusDescr(tables: Tables): CheckTableEntry {
-		const entry = tables.eventFocus.resolve(this.event_focus_index);
+		const entry = tables.eventFocus.resolve(this.event_focus_index, false /* TODO */);
 		mTrace('eventfocus', "focus resolved to", entry);
 		return entry;
 	}
-	/** set the object (or no object, for some interpretations) */
+	/** set the object (or no object, for some interpretations). Having no object is the normal situation for some interpretations, such as 'none'. */
 	defineSelectedObject(metadata: Metadata, interpretation: string) {
-		const objects = metadata.blockTable.objects(interpretation);
+		const objects = metadata.blockTable.objects(interpretation, true);
 		if (objects.length == 0) {
 			mTrace('event', "no objects to select from, for", interpretation);
 			this.objectNumber = 0;

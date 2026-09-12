@@ -122,7 +122,7 @@ export class Meaning {
 		return ts;
 	}
 }
-/** dialog to edit a Meaning. */
+/** dialog to edit a Meaning. This for a stand-alone Meaning code block. */
 export class MeaningModal extends Modal {
 	meaning: Meaning;
 	constructor(app: App, meaning: Meaning, block: CodeBlock, tables: Tables) {
@@ -166,7 +166,7 @@ export class MeaningModal extends Modal {
 					this.close();
 				}));
 	}
-	/** create a drop down to select a meaning oracle. */
+	/** create the user interface for a Meaning. This will be part of a Modal. Create a drop down to select a meaning oracle. */
 	static makeMeaning(elt: HTMLElement, dropDownResult: DropdownComponent | undefined, tables: Tables, onChange: (meaningKind: string) => void, meaning: Meaning | undefined) {
 		if (meaning === undefined) { console.warn("no meaning for dropdown"); } // LATER if this actually happens, fix it; otherwise change it to an assert
 		new Setting(elt)

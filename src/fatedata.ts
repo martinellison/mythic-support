@@ -2,9 +2,12 @@ import { Setting, TextAreaComponent, ButtonComponent, DisplayValueComponent, Dro
 import { Tables } from './tables2.js';
 import { assertDefined, mTrace, mythicDice } from './main.js';
 import { Exclude, Expose } from 'class-transformer';
+/** can supply the chaos level. */
 export interface ChaosProvider {
+	/** returns the chaos level. */
 	chaosValue(): number;
 }
+/** dummy class used as default. */
 export class DummmyChaosProvider implements ChaosProvider {
 	chaosValue(): number { return 5; }
 }
@@ -23,6 +26,7 @@ export class FateData {
 		this.chaosProvider = chaosProvider;
 		this.dice = [0, 0];
 	}
+	/** the modification resulting from the chaos level. */
 	chaosMod(): number {
 		assertDefined(this.chaosProvider);
 		const chaosFactor = this.chaosProvider.chaosValue();
@@ -32,7 +36,7 @@ export class FateData {
 	toText(tables: Tables): string {
 		let mod: number = tables.getQuestionOdds(this.odds).fate_check_modifier;
 		let roll_total = (this.dice[0] ?? 0) + (this.dice[1] ?? 0) + mod + this.chaosMod(); // always d10
-		let answer = tables.fateCheckAnswers.resolve(roll_total);
+		let answer = tables.fateCheckAnswers.resolve(roll_total, false /* TODO */);
 		return `${this.description}: ${answer.text} (${this.dice[0]}/${this.dice[1]} = ${roll_total})`;
 	}
 	/** create HTML for display */
@@ -47,7 +51,7 @@ export class FateData {
 			const chaos = this.chaosMod();
 			spanFate.createEl('i', { text: ` (${this.dice[0] ?? 0} + ${this.dice[1] ?? 0} + ${mod} + ${chaos})` });
 			const roll_total = (this.dice[0] ?? 0) + (this.dice[1] ?? 0) + mod + chaos; // always d10
-			const answer = tables.fateCheckAnswers.resolve(roll_total);
+			const answer = tables.fateCheckAnswers.resolve(roll_total, false /* TODO */);
 			spanFate.createSpan({ text: ` = ${roll_total}` });
 			spanFate.createEl('b', { text: ` (${answer.text})` });
 			// mTrace('fate', this.dice, mod, chaos, "=", roll_total);
@@ -62,16 +66,17 @@ export class FateData {
 		const chaosFactor = this.chaosProvider.chaosValue();
 		return ((this.dice[0] ?? 0) == (this.dice[1] ?? 0) && (this.dice[0] ?? 0) <= chaosFactor);
 	}
-
+	/** throw the dice to provide randomness. */
 	throwDice(): void {
 		for (let d = 0; d < 2; d++) this.dice[d] = mythicDice(10);
 	}
 }
+/** create a Modal for the user interface to a FateData. */
 export class FateDataModal {
+	fateData?: FateData;
 	questionSetting: Setting;
 	oddsSetting: Setting;
 	// chaosSetting: Setting;
-	fateData?: FateData;
 	textArea?: TextAreaComponent;
 	oddsComponent?: DropdownComponent;
 	throwButton?: ButtonComponent;
@@ -134,6 +139,7 @@ export class FateDataModal {
 			this.infoDisplay = disp;
 		});
 	}
+	/** update the FateDataModal to reflect the change in the FateData. */
 	setData(fateData: FateData | undefined, tables: Tables) {
 		// mTrace('fate data', "setting fate data");
 		assertDefined(fateData);
@@ -146,6 +152,7 @@ export class FateDataModal {
 		if (this.infoDisplay !== undefined)
 			this.infoDisplay.setValue(this.fateData?.toText(tables));
 	}
+	/** set the visibility of FateDataModal components. */
 	setVisibility(visible: boolean, narr: string = "sv?") {
 		// mTrace('fate data', "setting fate", visible ? "visible" : "invisible", narr);
 		this.questionSetting.setVisibility(visible);

@@ -63,7 +63,7 @@ export class BlockTable {
 		this.table.delete(file.path);
 	}
 	/** gets all the objects in the BlockFile */
-	objects(kind: string): Array<MythicObject> {
+	objects(kind: string, includeProtected: boolean): Array<MythicObject> {
 		mTrace('', "collecting objects");
 		let objects = new Array<MythicObject>;
 		for (let blocks of this.table) {
@@ -71,7 +71,7 @@ export class BlockTable {
 			for (let block of blocks[1]) {
 				// mTrace('', "block is", block);
 				let object = block.asMythicObject();
-				if (object !== undefined && !(object.removed ?? false) && object.kind == kind) {
+				if (object !== undefined && !(object.hasBeenRemoved ?? false) && object.kind == kind && (includeProtected || !object.isProtected)) {
 					objects.push(object);
 				}
 			}
@@ -80,8 +80,8 @@ export class BlockTable {
 		return objects;
 	}
 	/** names of all objects of a kind */
-	objectNames(kind: string): Array<string> {
-		return this.objects(kind).map(ch => (ch.marker !== undefined && ch.marker.trim() != "" ? ` [${ch.marker}] ` : "") + ch.name);
+	objectNames(kind: string, includeProtected: boolean): Array<string> {
+		return this.objects(kind, includeProtected).map(ch => (ch.isProtected ? "*" : "") + (ch.marker !== undefined && ch.marker.trim() != "" ? ` [${ch.marker}] ` : "") + ch.name);
 	}
 }
 

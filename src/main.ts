@@ -8,6 +8,7 @@ import {
 	Setting,
 	EditorPosition,
 } from 'obsidian';
+/** @document summary.md */
 import { DEFAULT_SETTINGS, MythicSettingTab, MythicSupportPluginSettings } from './settings.js';
 import { CodeBlock } from './codeblock.js';
 import 'reflect-metadata';
@@ -26,8 +27,8 @@ export function assertDefined<T>(value: T | undefined | null): asserts value is 
 }
 /** displays a trace message if required */
 export function mTrace(narr: string, ...vals: any[]): void {
-	// 	// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
-	// 	console.log("mythic", `${narr}: `, ...vals);
+	// // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
+	// console.log("mythic", `${narr}: `, ...vals);
 }
 /** shorten a string. */
 export function shorten(s: string): string {
@@ -340,7 +341,7 @@ export class CreateModal extends Modal {
 				dropDown.addOption(ident, kind.displayName);
 			});
 			tables.objectKinds.forEach((kind: MythicObjectMeta, ident: string) => {
-				dropDown.addOption('*' + ident, `select ${kind.displayName}`);
+				dropDown.addOption('*' + ident, `Select ${kind.displayName}`);
 			});
 			tables.simples.forEach((kind: MythicObjectMeta, ident: string) => {
 				dropDown.addOption(ident, kind.displayName);
