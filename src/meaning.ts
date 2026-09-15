@@ -5,7 +5,7 @@ import { assertDefined, mTrace, mythicDice, shorten } from './main.js';
 // import { Question } from './question.js';
 import { Oracle, Tables } from './tables2.js';
 
-/**  implements an zzz block. meaning text should come after a meaning block */
+/**  implements an meaning block. meaning text should come after a meaning block */
 export class Meaning {
 	@Expose() description: string = "";
 	@Expose() meaningKind: string = 'action1';
