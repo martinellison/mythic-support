@@ -1,4 +1,4 @@
-# the Mythic Game Master Emulator Obsidian Plugin
+# The Mythic Game Master Emulator Obsidian Plugin
 This plugin helps with using the Mythic Game Master Emulator to play solo role-playing games.
 
 This assumes that you have a copy of Tana Pigeon's *Mythic Game Master Emulator* (2nd ed.), Word Mill Games, 2026, Riverside CA. If not, buy a copy. See https://www.wordmillgames.com/ for further information.
@@ -7,7 +7,7 @@ This assumes that you have a copy of Tana Pigeon's *Mythic Game Master Emulator*
 - install the Obsidian note-taking application. See https://obsidian.md/
 - create a new vault for this plugin, so you do not corrupt your other notes when the plugin malfunctions. For vaults, and other Obsidian features, see the Obsidian documentation.
 - The plugin releases are stored on GitHub at https://github.com/martinellison/mythic-support/releases. You want the latest release.
-- Pull down a copy of the latest plugin release from GitHub, unzip it,  and move it into the `.obsidian/plugins` directory in your vault (this step will change in later version of this plugin). 
+- Pull down a copy of the `mythic-support.zip` file from the latest plugin release from GitHub, unzip it,  and move it into the `.obsidian/plugins` directory in your vault (this step will change in later version of this plugin). 
 - copy the `tables.kdl` file into a `tables.md` file in your vault. (This step will be automated in a later release).
 - open the Settings for your vault, go to Community plugins and enable the Mythic GME plugin. 
 - to upgrade to a new version of the plugin, follow the above steps, and (in Settings/Community plugins) stop and restart the plugin. 
@@ -99,9 +99,9 @@ Otherwise use the 'Mythic edit' command to bring up an edit dialog and later cli
 
 ## To edit the options
 
-It is possible to edit some options. This enables additional tables or alternatives to the standard Mythic tables.
+It is possible to edit some options (for example, to add more oracles). This enables additional tables or alternatives to the standard Mythic tables.
 
-At writing, the options are stored in the `tables.md` note in the Obsidian vault. The options can be changed by editing this note or adding the `tables-extra.md` note.
+The options are stored in the `tables.md` note in the Obsidian vault. The options can be changed by editing this note or adding the `tables-extra.md` note. You can change the names of these files or add additional files of tables by modifying the plugin settings under "Tables files" (and restarting the plugin).
 
 ### Options in general
 

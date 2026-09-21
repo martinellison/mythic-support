@@ -97,20 +97,25 @@ export class Metadata {
 	}
 	/** This is called whenever a note file has changed. It scans all th code blocks. */
 	onChanged(file: TFile, data: string, cache: CachedMetadata, plugin: MythicSupportPlugin, narr: string) {
-		mTrace('metadata', "scanning file", file);
+		mTrace('metadata', "scanning file", file.path);
 		if (plugin === undefined) { console.warn(`onChanged no plugin, ${file.path}, ${narr}`); }
-		else if (plugin.settings === undefined) { console.warn("onChanged no settings", narr); }
+		else if (plugin.settings === undefined) { console.warn("file onChanged no settings", narr); }
 		else {
 			this.autoScanLists = plugin.settings.autoScanLists;
 			this.adventure_from_settings = plugin.settings.adventureFolder;
+			// mTrace('metadata', `set scan lists ${this.autoScanLists}, adventure '${this.adventure_from_settings}'`);
 		}
 		if (this === undefined) console.error("no this for change!", narr);
 		if (cache === undefined) console.error("no metadata", narr);
 		if (cache === null) console.warn("null metadata", narr);
-		if (file.extension !== "md") return;
+		if (file.extension !== "md") {
+			// mTrace('metadata', "file not scanned because of extension", file.path);
+			return;
+		}
+		mTrace('metadata', `checking against '${this.adventure_from_settings}'`);
 		const adventure_from_file = file.path;
 		if (!adventure_from_file.startsWith(this.adventure_from_settings)) {
-			mTrace('', `wrong adventure '${adventure_from_file}', required to be in '${this.adventure_from_settings}'`);
+			// mTrace('metadata', `wrong adventure '${adventure_from_file}', required to be in '${this.adventure_from_settings}'`);
 			return;
 		}
 		// mTrace('', "metadata file scanning, file:", file, "adventure", adventure_from_file, narr);

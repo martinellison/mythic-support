@@ -4,6 +4,7 @@ import { Type, plainToInstance, Expose } from 'class-transformer';
 import { QuestionOdds } from './question.js';
 import { assertDefined, mTrace } from './main.js';
 import { DiceRandom } from './dice.js';
+import { MythicSupportPluginSettings } from './settings.js';
 /** Interpretation covers the interpretations of an EventFocus that do not have an entry in the `eventFocus` table. */
 export const enum Interpretation {
 	None = 'none',
@@ -193,10 +194,11 @@ export class Tables {
 }
 /** Tables as loaded from KDL. */
 export class KdlTables {
-	static async load(vault: Vault): Promise<Tables> {
+	static async load(vault: Vault, settings: MythicSupportPluginSettings): Promise<Tables> {
 		// mTrace('kdl', "start parsing KDL");
 		let table = new Tables;
-		const files = ["tables.md", "tables-extra.md"];
+		// const files = ["tables.md", "tables-extra.md"]; // TODO get from settings
+		const files = settings.tableFiles;
 		for (let file of files) {
 			mTrace('tables', "loading tables from", file);
 			await KdlTables.loadFromFile(file, table, vault);
@@ -334,37 +336,45 @@ export class KdlTables {
 	}
 	/** loads the kDL from a file , converts it to TypeScript, and interprets each table. */
 	static async loadFromFile(file: string, table: Tables, vault: Vault) {
-		const kdl = await KdlTables.getKdl(file, table, vault);
-		assertDefined(kdl);
-		let nodes: Array<KdlNode> = plainToInstance(Array<KdlNode>, kdl.output,);
-		mTrace('', "tables as read from KDL", nodes);
-		nodes.forEach((node: KdlNode) => {
-			// mTrace('kdl', "node is", node);
-			switch (node.name) {
-				case 'questions':
-					KdlTables.getQuestions(node.children, table);
-					break;
-				case 'fate':
-					KdlTables.getFate(node, table);
-					break;
-				case 'eventFocus':
-					KdlTables.getEventFocus(node, table);
-					break;
-				case 'objects':
-					KdlTables.getObjects(node, table);
-					break;
-				case 'simples':
-					KdlTables.getSimples(node, table);
-					break;
-				case 'oracles':
-					KdlTables.getOracles(node, table);
-					break;
-				default:
-					// mTrace('', "need to implement", node.name);
-					console.error("unknown node type", node.name, "file:", file);
-					if (table.result == "") table.result = `invalid table entry '${node.name}' in file ${file}.`;
+		try {
+			const kdl = await KdlTables.getKdl(file, table, vault);
+			if (kdl == undefined) {
+				console.error("could not read KDL tables file", file);
+				return;
 			}
-		});
+			let nodes: Array<KdlNode> = plainToInstance(Array<KdlNode>, kdl.output,);
+			mTrace('', "tables as read from KDL", nodes);
+			nodes.forEach((node: KdlNode) => {
+				// mTrace('kdl', "node is", node);
+				switch (node.name) {
+					case 'questions':
+						KdlTables.getQuestions(node.children, table);
+						break;
+					case 'fate':
+						KdlTables.getFate(node, table);
+						break;
+					case 'eventFocus':
+						KdlTables.getEventFocus(node, table);
+						break;
+					case 'objects':
+						KdlTables.getObjects(node, table);
+						break;
+					case 'simples':
+						KdlTables.getSimples(node, table);
+						break;
+					case 'oracles':
+						KdlTables.getOracles(node, table);
+						break;
+					default:
+						// mTrace('', "need to implement", node.name);
+						console.error("unknown node type", node.name, "file:", file);
+						if (table.result == "") table.result = `invalid table entry '${node.name}' in file ${file}.`;
+				}
+			});
+		}
+		catch (err) {
+			console.error("error when trying to load tables:", err);
+		}
 	}
 }
 /** Data loaded from a Node in the KDL files, as a TypeScript class. */
