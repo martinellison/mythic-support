@@ -97,7 +97,7 @@ export class Metadata {
 	}
 	/** This is called whenever a note file has changed. It scans all th code blocks. */
 	onChanged(file: TFile, data: string, cache: CachedMetadata, plugin: MythicSupportPlugin, narr: string) {
-		mTrace('metadata', "scanning file", file.path);
+		// mTrace('metadata', "scanning file", file.path);
 		if (plugin === undefined) { console.warn(`onChanged no plugin, ${file.path}, ${narr}`); }
 		else if (plugin.settings === undefined) { console.warn("file onChanged no settings", narr); }
 		else {
@@ -112,7 +112,7 @@ export class Metadata {
 			// mTrace('metadata', "file not scanned because of extension", file.path);
 			return;
 		}
-		mTrace('metadata', `checking against '${this.adventure_from_settings}'`);
+		// mTrace('metadata', `checking against '${this.adventure_from_settings}'`);
 		const adventure_from_file = file.path;
 		if (!adventure_from_file.startsWith(this.adventure_from_settings)) {
 			// mTrace('metadata', `wrong adventure '${adventure_from_file}', required to be in '${this.adventure_from_settings}'`);
@@ -158,10 +158,10 @@ export class Metadata {
 	/** this scans all Markdown files for metadata. */
 	async scanAllFiles(cache: MetadataCache, vault: Vault, plugin: MythicSupportPlugin) {
 		mTrace('', "block scanning all files");
-		assertDefined(plugin);
+		assertDefined(plugin, 'metadata');
 		// else if (plugin.settings === undefined) { console.warn("scanAllFiles no settings");  }
-		assertDefined(cache);
-		assertDefined(vault);
+		assertDefined(cache, 'metadata');
+		assertDefined(vault, 'metadata');
 		this.blockTable.clearAll();
 		for (let file of vault.getMarkdownFiles()) {
 			if (file instanceof TFile) {

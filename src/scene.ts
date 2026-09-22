@@ -53,7 +53,7 @@ export class Scene implements ChaosProvider {
 	@Expose() focus?: EventFocus;
 	@Type(() => Meaning)
 	@Expose() meaning?: Meaning;
-	@Expose() hasRandom: boolean = false;
+	@Expose() hasRandom?: boolean; // does this do anything??
 	constructor(num?: string) {
 		this.ident = num ?? "0";
 	}
@@ -256,7 +256,7 @@ export class Scene implements ChaosProvider {
 	/** do a scene adjustment. */
 	addSceneAdjustment() {
 		const sceneAdjustOracle = mythicDice(10); // MGME p70
-		assertDefined(this.adjustment);
+		assertDefined(this.adjustment, 'scene');
 		switch (sceneAdjustOracle) {
 			case 1: this.adjustment.push(SceneAdjustment.RemoveMythicCharacter); break;
 			case 2: this.adjustment.push(SceneAdjustment.AddMythicCharacter); break;
@@ -278,6 +278,7 @@ export class Scene implements ChaosProvider {
 			// @ts-ignore
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.parse returns any
 			let scene: Scene = plainToInstance(Scene, JSON.parse(source), { excludeExtraneousValues: true });
+			if (scene.hasRandom === undefined) scene.hasRandom = false;
 			// mTrace('scene', "scene from json", scene, scene.fate === undefined ? "haven't fate" : "have fate");
 			if (scene.fate !== undefined)
 				scene.fate.chaosProvider = scene;
@@ -291,6 +292,7 @@ export class Scene implements ChaosProvider {
 	/** convert to JSON. */
 	toJson(): string {
 		this.useSceneType();
+		if (!this.hasRandom) this.hasRandom = undefined;
 		return JSON.stringify(instanceToPlain(this));
 	}
 	/** describe the scene in plain text */
@@ -340,7 +342,7 @@ export class Scene implements ChaosProvider {
 	static toHtml(source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext, tables: Tables) {
 		let divElt: HTMLDivElement = el.createDiv({ cls: 'mythic-scene' });
 		try {
-			assertDefined(tables);
+			assertDefined(tables, 'scene');
 			// mTrace('', "rendering scene", source);
 			const scene: Scene = Scene.fromJson(source);
 			divElt.createSpan({ text: `(scene) ${scene.ident} chaos ${scene.chaos} ` });
@@ -507,7 +509,7 @@ export class SceneModal extends Modal {
 					// this.scene.setRandom(tables, plugin);
 					this.showAlterationKind(tables);
 					if (this.scene.fate !== undefined) {
-						assertDefined(this.fateDataModal);
+						assertDefined(this.fateDataModal, 'scene');
 						this.fateDataModal.setVisibility(true);
 						this.fateDataModal.setData(this.scene.fate, tables);
 					}
@@ -595,9 +597,9 @@ export class SceneModal extends Modal {
 			case AlterationKind.Next: break;
 			case AlterationKind.Tweak: break;
 			case AlterationKind.FateQuestion:
-				assertDefined(this.fateDataModal);
+				assertDefined(this.fateDataModal, 'scene');
 				if (this.fateDataModal.fateData == undefined) {
-					assertDefined(this.scene.fate);
+					assertDefined(this.scene.fate, 'scene');
 					this.fateDataModal.setData(this.scene.fate, tables);
 				}
 				break;
@@ -607,15 +609,15 @@ export class SceneModal extends Modal {
 	}
 	/** check the Scene and display its current status in the SceneModal. */
 	checkAndShow(tables: Tables, narr?: string): void {
-		assertDefined(this.mandDisplay);
-		assertDefined(this.saveButton);
-		assertDefined(this.randomButton);
-		assertDefined(this.alterationDropdown);
-		assertDefined(this.alterationText);
+		assertDefined(this.mandDisplay, 'scene');
+		assertDefined(this.saveButton, 'scene');
+		assertDefined(this.randomButton, 'scene');
+		assertDefined(this.alterationDropdown, 'scene');
+		assertDefined(this.alterationText, 'scene');
 		// assertDefined(this.meaningDropdown);
-		assertDefined(this.infoDisplay1);
-		assertDefined(this.infoDisplay2);
-		assertDefined(this.infoDisplay3);
+		assertDefined(this.infoDisplay1, 'scene');
+		assertDefined(this.infoDisplay2, 'scene');
+		assertDefined(this.infoDisplay3, 'scene');
 		const status = this.scene.check();
 		// mTrace("scene status checked as", SceneStatus[status], this.scene.fate === undefined ? "haven't fate," : "have fate,", narr ?? "other");
 		switch (status) {
@@ -653,7 +655,7 @@ export class SceneModal extends Modal {
 		if (status == SceneStatus.NeedsFate && this.scene.fate === undefined) console.warn("fate needed but missing!");
 		if (showFate) {
 			if (this.scene.fate === undefined) console.warn("want to show fate but missing!");
-			assertDefined(this.fateDataModal);
+			assertDefined(this.fateDataModal, 'scene');
 			if (this.fateDataModal.fateData === undefined)
 				console.warn("fate modal has no data");
 		}

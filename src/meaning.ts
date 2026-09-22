@@ -112,7 +112,7 @@ export class Meaning {
 	}
 	/** this returns the sizes of the selected tables. */
 	tableSizes(tables: Tables): Array<number> {
-		assertDefined(tables);
+		assertDefined(tables, 'meaning');
 		// if (this.meaningKind == 'none') console.warn("no meaning kind in tableSizes");
 		let ts = new Array<number>;
 		const tabs = Meaning.selectedTables(tables, this.meaningKind);
@@ -127,8 +127,8 @@ export class MeaningModal extends Modal {
 	meaning: Meaning;
 	constructor(app: App, meaning: Meaning, block: CodeBlock, tables: Tables) {
 		super(app);
-		assertDefined(tables);
-		assertDefined(meaning);
+		assertDefined(tables, 'meaning');
+		assertDefined(meaning, 'meaning');
 		this.meaning = meaning;
 		this.setTitle('Meaning'); new Setting(this.contentEl)
 			.setName('Description')
@@ -166,9 +166,11 @@ export class MeaningModal extends Modal {
 					this.close();
 				}));
 	}
-	/** create the user interface for a Meaning. This will be part of a Modal. Create a drop down to select a meaning oracle. */
-	static makeMeaning(elt: HTMLElement, dropDownResult: DropdownComponent | undefined, tables: Tables, onChange: (meaningKind: string) => void, meaning: Meaning | undefined) {
-		if (meaning === undefined) { console.warn("no meaning for dropdown"); } // LATER if this actually happens, fix it; otherwise change it to an assert
+	/** create the user interface for searching for a Meaning. This will be part of a Modal. Create a drop down to select a meaning oracle. 
+	 
+	If `meaning` is not defined, this just means that no meaning has been selected yet, and so no value will be initially selected in the dropdown. */
+	static makeMeaning(elt: HTMLElement, dropDownResult: DropdownComponent | undefined, tables: Tables, onChange: (meaningKind: string) => void, meaning: Meaning | undefined): void {
+		if (meaning === undefined) { mTrace('meaning/make', "(make meaning) no meaning for dropdown"); } // not a problem
 		new Setting(elt)
 			.setDesc("Select which meaning tables to consult.").setName('Meaning').addDropdown((dropDown) => {
 				dropDownResult = dropDown;
@@ -181,8 +183,6 @@ export class MeaningModal extends Modal {
 				dropDown.setValue(meaning === undefined ? 'action1' : meaning.meaningKind);
 				dropDown.onChange((value) => {
 					mTrace('meaning', "meaning changed to", value);
-					// if (meaning !== undefined) {
-					// meaning.meaningKind = value; // does not work?
 					onChange(value);
 					// }
 				});

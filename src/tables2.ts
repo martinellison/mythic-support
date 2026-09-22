@@ -180,7 +180,6 @@ export class Tables {
 			for (let k of this.oracles) { console.warn("oracles", k[0]); }
 			for (let k of this.simples) { console.warn("simples", k[0]); }
 		}
-		// assertDefined(simpleMeta);
 		return simpleMeta;
 	}
 
@@ -233,7 +232,7 @@ export class KdlTables {
 			const ident: string = odds.values[0] as string ?? "";
 			const props = new Map(Object.entries(odds.properties));
 			// mTrace('tables', "props is", props);
-			assertDefined(props);
+			assertDefined(props, 'tables');
 			const display = props.get('display') as string;
 			const mod = parseInt(props.get('mod') as string ?? "0") ?? 0;
 			table.questionOdds.push(new QuestionOdds(ident, display, mod));
@@ -249,7 +248,7 @@ export class KdlTables {
 			// mTrace('', "odds", odds);
 			const text = odds.values[0] ?? "";
 			const props = new Map(Object.entries(odds.properties));
-			assertDefined(props);
+			assertDefined(props, 'tables');
 			// const interpretation = props.interpretation as string;
 			// const min = parseInt(props.min as string) ?? 0;
 			const weight = parseInt(props.get('weight') as string ?? "1") ?? 1;
@@ -268,7 +267,7 @@ export class KdlTables {
 			// mTrace('', "chance", chance);
 			const text = chance.values[0] ?? "";
 			const props = new Map(Object.entries(chance.properties));
-			assertDefined(props);
+			assertDefined(props, 'tables');
 			// const text = props.text as string;
 			const interpretation = props.get('interpretation') as Interpretation;
 			const protect = props.get('protect') as boolean ?? false;
@@ -283,7 +282,7 @@ export class KdlTables {
 			// mTrace('', "object kind", kind);
 			const ident = kind.values[0] ?? "";
 			const props = new Map(Object.entries(kind.properties));
-			assertDefined(props);
+			assertDefined(props, 'tables');
 			// const text = odds.text as string;
 			const display = props.get('display') as string;
 			const description = props.get('description') as string;
@@ -297,7 +296,7 @@ export class KdlTables {
 		node.children.forEach(itemNode => {
 			const ident: string = itemNode.values[0] ?? "";
 			const props = new Map(Object.entries(itemNode.properties));
-			assertDefined(props);
+			assertDefined(props, 'tables');
 			const display = props.get('display') as string;
 			const description = props.get('description') as string;
 			const progress = false;
@@ -309,7 +308,7 @@ export class KdlTables {
 		node.children.forEach(tableNode => {
 			const ident = tableNode.values[0] ?? "";
 			const props = new Map(Object.entries(tableNode.properties));
-			assertDefined(props);
+			assertDefined(props, 'tables');
 			const diceType = props.get('dice') as string;
 			const description = props.get('description') as string;
 			let alt = props.get('alt') as string;

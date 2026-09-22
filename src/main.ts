@@ -22,13 +22,17 @@ import { KdlTables } from './tables2.js';
 import { Dice, DiceModal } from './dice.js';
 import { Meaning, MeaningModal } from './meaning.js';
 /** this checks whether a value exists and throws an error otherwise. */
-export function assertDefined<T>(value: T | undefined | null): asserts value is T {
-	if (value === undefined || value == null) throw new Error('Value is undefined or null');
+export function assertDefined<T>(value: T | undefined | null, narr?: string): asserts value is T {
+	if (value === undefined || value == null) {
+		const msg = `Value is undefined or null${narr === undefined ? '' : ' (' + narr + ')'}`;
+		console.warn(msg);
+		throw new Error(msg);
+	}
 }
 /** displays a trace message if required */
 export function mTrace(narr: string, ...vals: any[]): void {
-	// // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
-	// console.log("mythic", `${narr}: `, ...vals);
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
+	console.log("mythic", `${narr}: `, ...vals);
 }
 /** shorten a string. */
 export function shorten(s: string): string {
@@ -112,14 +116,15 @@ export default class MythicSupportPlugin extends Plugin {
 									cursor.line,
 									'question',
 								);
-								assertDefined(this.metadata);
+								assertDefined(this.metadata, 'main');
 								new QuestionModal(this.app, question, block, this.tables, this, this.metadata).open();
 								break;
 							}
 							case MythicObjectKind.MythicObject: {
 								const meta = this.tables.meta(objectKind);
+								if (meta === undefined) mTrace('main/object/create', "tables not loaded");
 								mTrace('main', "meta for", objectKind);
-								assertDefined(meta);
+								assertDefined(meta, 'main');
 								let object = new MythicObject(objectKind, "", "", "", selection);
 								let block = new CodeBlock(
 									cursor.line,
@@ -197,7 +202,7 @@ export default class MythicSupportPlugin extends Plugin {
 								case Question.TAG:
 									{
 										let question = Question.fromJson(source);
-										assertDefined(this.metadata);
+										assertDefined(this.metadata, 'main');
 										new QuestionModal(this.app, question, block, this.tables, this, this.metadata).open();
 									}
 									break;
@@ -217,7 +222,8 @@ export default class MythicSupportPlugin extends Plugin {
 									{
 										let object = MythicObject.fromJson(source);
 										const meta = this.tables.meta(object.kind);
-										assertDefined(meta);
+										if (meta === undefined) mTrace('main/object/edit', "tables not loaded");
+										assertDefined(meta, 'main');
 										new MythicObjectModal(this.app, this, object, block, this.tables, meta).open();
 									}
 									break;

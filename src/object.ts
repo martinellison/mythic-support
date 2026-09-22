@@ -62,6 +62,10 @@ export class MythicObject {
 		try {
 			const object: MythicObject = MythicObject.fromJson(source);
 			const meta = tables.meta(object.kind);
+			if (meta === undefined) {
+				console.warn(`(${object.kind}) tables not loaded yet`);
+				divElt.createEl('b', { text: `(${object.kind}) tables not loaded yet` });
+			}
 			const tfs: string = (meta === undefined ? "unknown" : (ThingFamily[meta.family] ?? 'unknown')).toLowerCase();
 			// let cl = `mythic-object mythic-${object.kind} mythic-${tfs}` + ((object.removed ?? false) ? ' mythic-removed' : '');
 			const tag = object.hasSelection ? " selection" : "";
@@ -113,7 +117,7 @@ export class MythicObjectModal extends Modal {
 	constructor(app: App, plugin: MythicSupportPlugin, object: MythicObject, block: CodeBlock, tables: Tables, kind: MythicObjectMeta) {
 		super(app);
 		mTrace('object', "create object modal", kind, "block:", block, "object:", object);
-		assertDefined(kind);
+		assertDefined(kind, 'object');
 		this.object = object;
 		this.setTitle(kind.displayName);
 		if (kind.family == ThingFamily.ThingObject && !object.hasSelection)
