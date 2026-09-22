@@ -41,6 +41,7 @@ export function shorten(s: string): string {
 }
 /** This returns a random number 1 to `n` */
 export function mythicDice(n: number): number { return Math.floor(Math.random() * n) + 1; }
+/** the plugin */
 export default class MythicSupportPlugin extends Plugin {
 	settings!: MythicSupportPluginSettings;
 	tables: Tables = new Tables();
