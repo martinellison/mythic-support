@@ -31,8 +31,8 @@ export function assertDefined<T>(value: T | undefined | null, narr?: string): as
 }
 /** displays a trace message if required */
 export function mTrace(narr: string, ...vals: any[]): void {
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
-	console.log("mythic", `${narr}: `, ...vals);
+	// // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- only use here
+	// console.log("mythic", `${narr}: `, ...vals);
 }
 /** shorten a string. */
 export function shorten(s: string): string {
