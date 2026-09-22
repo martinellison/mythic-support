@@ -48,5 +48,4 @@ jobs:
                     --title="$tag" \
                     --draft \
                     main.js manifest.json ${{ steps.styles.outputs.exists == 'true' && 'styles.css' || '' }} \
-					CONTRIBUTING.md LICENSE README.md tables.kdl \
-					"How to write your own adventure.md"
+					CONTRIBUTING.md LICENSE README.md tables.kdl "How to write your own adventure.md"
