@@ -7,7 +7,7 @@ This assumes that you have a copy of Tana Pigeon's *Mythic Game Master Emulator*
 - install the Obsidian note-taking application. See https://obsidian.md/
 - create a new vault for this plugin, so you do not corrupt your other notes when the plugin malfunctions. For vaults, and other Obsidian features, see the Obsidian documentation.
 - The plugin releases are stored on GitHub at https://github.com/martinellison/mythic-support/releases. You want the latest release.
-- Pull down a copy of the `mythic-support.zip` file from the latest plugin release from GitHub, unzip it,  and move it into the `.obsidian/plugins` directory in your vault (this step will change in later version of this plugin). 
+- Pull down a copy of the latest plugin release from GitHub and move it into the `.obsidian/plugins/mystic-support` directory in your vault (create this if it does not exist). You do not need to copy the source code ZIP files.
 - copy the `tables.kdl` file into a `tables.md` file in your vault. (This step will be automated in a later release).
 - open the Settings for your vault, go to Community plugins and enable the Mythic GME plugin. 
 - to upgrade to a new version of the plugin, follow the above steps, and (in Settings/Community plugins) stop and restart the plugin. 
